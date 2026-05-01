@@ -20,13 +20,21 @@ CORS(app, resources={r"/*": {"origins": [
     "https://fresume-henna.vercel.app"
 ]}}, supports_credentials=True)
 
+# ✅ Force CORS headers on every response
+@app.after_request
+def add_cors_headers(response):
+    response.headers["Access-Control-Allow-Origin"] = "https://fresume-henna.vercel.app"
+    response.headers["Access-Control-Allow-Headers"] = "Content-Type,Authorization"
+    response.headers["Access-Control-Allow-Methods"] = "GET,POST,OPTIONS"
+    return response
+
 # ---------------------------
 # 🔹 Register Route
 # ---------------------------
 @app.route("/register", methods=["POST"])
 def register():
     try:
-        data = request.get_json()
+        data = request.get_json()   # ✅ JSON instead of form
         username = data.get("username")
         password = data.get("password")
 
@@ -49,7 +57,7 @@ def register():
 @app.route("/login", methods=["POST"])
 def login():
     try:
-        data = request.get_json()
+        data = request.get_json()   # ✅ JSON instead of form
         username = data.get("username")
         password = data.get("password")
 
