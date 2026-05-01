@@ -1,6 +1,6 @@
 from flask import Flask, request, jsonify
 from flask_cors import CORS
-from flask_jwt_extended import JWTManager, create_access_token, jwt_required
+from flask_jwt_extended import JWTManager, create_access_token, jwt_required, get_jwt_identity
 from werkzeug.security import generate_password_hash, check_password_hash
 from datetime import datetime
 import os
@@ -12,9 +12,8 @@ app = Flask(__name__)
 
 # ---------------- JWT CONFIG ----------------
 app.config["JWT_SECRET_KEY"] = os.getenv("JWT_SECRET_KEY")
-
-# ✅ FIX 1: explicitly define Bearer token type
 app.config["JWT_HEADER_TYPE"] = "Bearer"
+app.config["JWT_TOKEN_LOCATION"] = ["headers"]
 
 if not app.config["JWT_SECRET_KEY"]:
     raise Exception("JWT_SECRET_KEY is missing")
@@ -28,7 +27,7 @@ CORS(app, resources={r"/*": {
         "https://fresume-nine.vercel.app",
         "https://fresume-git-main-arman-mohamand-projects.vercel.app"
     ]
-}}, supports_credentials=True)
+}})
 
 
 # ---------------- REGISTER ----------------
@@ -65,7 +64,6 @@ def login():
     if not user or not check_password_hash(user["password"], data.get("password")):
         return jsonify({"error": "Invalid credentials"}), 401
 
-    # FIXED: correct identity usage
     token = create_access_token(identity=user["username"])
 
     return jsonify({"access_token": token}), 200
@@ -86,12 +84,15 @@ def upload_resume():
     if len(text) > 200000:
         return jsonify({"error": "Resume too large"}), 400
 
+    user = get_jwt_identity()
+
     metadata = extract_metadata(text)
 
     resumes_collection.insert_one({
         "filename": filename,
         "text": text,
         "metadata": metadata,
+        "uploaded_by": user,
         "uploaded_at": datetime.utcnow()
     })
 
@@ -104,7 +105,7 @@ def upload_resume():
 def rank():
     data = request.get_json()
 
-    skills = data.get("required_skills", [])  # FIXED key mismatch
+    skills = data.get("required_skills", [])
     job_desc = data.get("job_description", "")
 
     resumes_data = list(resumes_collection.find({}, {"_id": 0}))
@@ -112,13 +113,9 @@ def rank():
 
     results = rank_resumes(resumes, job_desc, skills)
 
-    # FIXED: safe mapping
     for r in results:
         idx = r["resume_id"] - 1
-        if 0 <= idx < len(resumes_data):
-            r["metadata"] = resumes_data[idx].get("metadata", {})
-        else:
-            r["metadata"] = {}
+        r["metadata"] = resumes_data[idx].get("metadata", {}) if 0 <= idx < len(resumes_data) else {}
 
     analytics = generate_analytics(results, skills)
 
@@ -129,7 +126,7 @@ def rank():
     })
 
 
-# ---------------- HEALTH CHECK ----------------
+# ---------------- HEALTH ----------------
 @app.route("/", methods=["GET"])
 def home():
     return jsonify({"message": "Backend running successfully"})
