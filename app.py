@@ -14,27 +14,13 @@ app = Flask(__name__)
 app.config["JWT_SECRET_KEY"] = os.getenv("JWT_SECRET_KEY", "super-secret-key")
 jwt = JWTManager(app)
 
-# ✅ Allow requests from your Vercel frontend and local dev
+# ✅ Allow requests from local dev and all Vercel preview domains
 CORS(app, resources={r"/*": {"origins": [
     "http://localhost:5173",
     "https://fresume-nine.vercel.app",
     "https://fresume-git-main-arman-mohamand-projects.vercel.app",
     "https://fresume-*.vercel.app"  # wildcard for previews
 ]}}, supports_credentials=True)
-
-
-@app.after_request
-def add_cors_headers(response):
-    origin = request.headers.get("Origin")
-    allowed_origins = [
-        "http://localhost:5173",
-        "https://fresume-nine.vercel.app"
-    ]
-    if origin in allowed_origins:
-        response.headers["Access-Control-Allow-Origin"] = origin
-    response.headers["Access-Control-Allow-Headers"] = "Content-Type,Authorization"
-    response.headers["Access-Control-Allow-Methods"] = "GET,POST,OPTIONS"
-    return response
 
 # ---------------------------
 # 🔹 Register Route
