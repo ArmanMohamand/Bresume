@@ -158,13 +158,14 @@ jwt = JWTManager(app)
 # ---------------- CORS ----------------
 CORS(app, resources={r"/*": {"origins": "*"}})
 
+
 # ---------------- REGISTER ----------------
 @app.route("/register", methods=["POST"])
 def register():
     data = request.get_json()
 
     if users_collection.find_one({"username": data["username"]}):
-        return jsonify({"error": "User exists"}), 400
+        return jsonify({"error": "User already exists"}), 400
 
     users_collection.insert_one({
         "username": data["username"],
@@ -182,24 +183,29 @@ def login():
     user = users_collection.find_one({"username": data["username"]})
 
     if not user or not check_password_hash(user["password"], data["password"]):
-        return jsonify({"error": "invalid"}), 401
+        return jsonify({"error": "invalid credentials"}), 401
 
     token = create_access_token(identity=user["username"])
     return jsonify({"access_token": token})
 
 
-# ---------------- UPLOAD RESUME ----------------
+# ---------------- UPLOAD + AUTO RANK ----------------
 @app.route("/upload", methods=["POST"])
 @jwt_required()
 def upload():
     user = get_jwt_identity()
     data = request.get_json()
 
-    text = data["text"]
-    filename = data["filename"]
+    text = data.get("text", "")
+    filename = data.get("filename", "")
 
+    if not text or not filename:
+        return jsonify({"error": "Missing data"}), 400
+
+    # Extract metadata
     metadata = extract_metadata(text)
 
+    # Save resume
     resumes_collection.insert_one({
         "username": user,
         "filename": filename,
@@ -208,45 +214,33 @@ def upload():
         "score": 0
     })
 
-    return jsonify({"message": "uploaded"})
-
-
-# ---------------- RANK RESUMES ----------------
-@app.route("/rank", methods=["POST"])
-@jwt_required()
-def rank():
-    user = get_jwt_identity()
-    data = request.get_json()
-
+    # Fetch all resumes for user
     resumes = list(resumes_collection.find({"username": user}))
-
     texts = [r["text"] for r in resumes]
 
-    results = rank_resumes(
-        texts,
-        data.get("job_description", ""),
-        data.get("required_skills", [])
-    )
+    # Run ranking
+    results = rank_resumes(texts, "", [])
 
-    # SAVE SCORE BACK TO DB
+    # Save scores back to DB
     for r in results:
         idx = r["resume_id"] - 1
-        db_resume = resumes[idx]
 
-        resumes_collection.update_one(
-            {"_id": db_resume["_id"]},
-            {"$set": {"score": r["score"]}}
-        )
+        if 0 <= idx < len(resumes):
+            resumes_collection.update_one(
+                {"_id": resumes[idx]["_id"]},
+                {"$set": {"score": r["score"]}}
+            )
 
+    # Generate analytics
     analytics = generate_analytics(results)
 
     return jsonify({
-        "results": results,
+        "message": "Uploaded + Auto Ranked",
         "analytics": analytics
     })
 
 
-# ---------------- CANDIDATES API (MAIN FIX ⭐) ----------------
+# ---------------- CANDIDATES ----------------
 @app.route("/candidates", methods=["GET"])
 @jwt_required()
 def candidates():
@@ -269,6 +263,12 @@ def candidates():
         })
 
     return jsonify(result)
+
+
+# ---------------- HEALTH ----------------
+@app.route("/", methods=["GET"])
+def home():
+    return jsonify({"message": "Backend running"})
 
 
 # ---------------- RUN ----------------
