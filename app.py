@@ -17,16 +17,16 @@ jwt = JWTManager(app)
 # ✅ Allow requests from your Vercel frontend and local dev
 CORS(app, resources={r"/*": {"origins": [
     "http://localhost:5173",
-    "https://fresume-henna.vercel.app"
+    "https://fresume-nine.vercel.app"
 ]}}, supports_credentials=True)
 
-# ✅ Force CORS headers on every response
 @app.after_request
 def add_cors_headers(response):
-    response.headers["Access-Control-Allow-Origin"] = "https://fresume-henna.vercel.app"
+    response.headers["Access-Control-Allow-Origin"] = "https://fresume-nine.vercel.app"
     response.headers["Access-Control-Allow-Headers"] = "Content-Type,Authorization"
     response.headers["Access-Control-Allow-Methods"] = "GET,POST,OPTIONS"
     return response
+
 
 # ---------------------------
 # 🔹 Register Route
