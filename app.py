@@ -11,11 +11,11 @@ app = Flask(__name__)
 app.config["JWT_SECRET_KEY"] = os.getenv("JWT_SECRET_KEY", "super-secret-key")
 jwt = JWTManager(app)
 
-# ✅ Allow requests from your Vercel frontend
-CORS(app, origins=[
-    "http://localhost:5173",          # local dev
-    "https://fresume-henna.vercel.app"  # deployed frontend
-])
+# ✅ Allow requests from your Vercel frontend and local dev
+CORS(app, resources={r"/*": {"origins": [
+    "http://localhost:5173",
+    "https://fresume-henna.vercel.app"
+]}}, supports_credentials=True)
 
 # ✅ MongoDB Atlas connection
 MONGO_URI = os.getenv("MONGO_URI")
