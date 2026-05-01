@@ -6,3 +6,4 @@ gunicorn
 pymongo[srv]
 PyMuPDF
 Werkzeug
+dnspython
