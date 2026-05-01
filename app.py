@@ -4,147 +4,120 @@ from flask_jwt_extended import JWTManager, create_access_token, jwt_required
 from werkzeug.security import generate_password_hash, check_password_hash
 from datetime import datetime
 import os
+import re
 
 from db import users_collection, resumes_collection
 from model import rank_resumes, generate_analytics, extract_metadata
 
 app = Flask(__name__)
 
-# ✅ JWT secret key (must be set in Render)
-app.config["JWT_SECRET_KEY"] = os.getenv("JWT_SECRET_KEY", "super-secret-key")
-
-# 🔹 Explicitly set algorithm and expiry
-from datetime import timedelta
-app.config["JWT_ALGORITHM"] = "HS256"
-app.config["JWT_ACCESS_TOKEN_EXPIRES"] = timedelta(hours=1)  # token valid for 1 hour
+# ---------------- JWT CONFIG ----------------
+app.config["JWT_SECRET_KEY"] = os.getenv("JWT_SECRET_KEY")
+if not app.config["JWT_SECRET_KEY"]:
+    raise Exception("JWT_SECRET_KEY is missing")
 
 jwt = JWTManager(app)
 
-# ✅ Allow requests from local dev and all Vercel preview domains
-CORS(app, resources={r"/*": {"origins": [
-    "http://localhost:5173",
-    "https://fresume-nine.vercel.app",
-    "https://fresume-git-main-arman-mohamand-projects.vercel.app",
-    "https://fresume-*.vercel.app"  # wildcard for previews
-]}}, supports_credentials=True)
+# ---------------- CORS ----------------
+CORS(app, resources={r"/*": {
+    "origins": [
+        "http://localhost:5173",
+        "https://fresume-nine.vercel.app",
+        "https://fresume-git-main-arman-mohamand-projects.vercel.app"
+    ]
+}}, supports_credentials=True)
 
-# ---------------------------
-# 🔹 Register Route
-# ---------------------------
+# ---------------- REGISTER ----------------
 @app.route("/register", methods=["POST"])
 def register():
-    try:
-        data = request.get_json()
-        print("Register incoming data:", data)  # Debug log
+    data = request.get_json()
 
-        username = data.get("username")
-        password = data.get("password")
+    username = data.get("username")
+    password = data.get("password")
 
-        if not username or not password:
-            return jsonify({"error": "Missing username or password"}), 400
+    if not username or not password:
+        return jsonify({"error": "Missing fields"}), 400
 
-        if users_collection.find_one({"username": username}):
-            return jsonify({"error": "User already exists"}), 400
+    if users_collection.find_one({"username": username}):
+        return jsonify({"error": "User already exists"}), 400
 
-        hashed_pw = generate_password_hash(password)
-        users_collection.insert_one({"username": username, "password": hashed_pw})
-        return jsonify({"message": "User registered successfully!"}), 201
-    except Exception as e:
-        print("Register error:", e)
-        return jsonify({"error": "Server error"}), 500
+    hashed_pw = generate_password_hash(password)
 
-# ---------------------------
-# 🔹 Login Route
-# ---------------------------
+    users_collection.insert_one({
+        "username": username,
+        "password": hashed_pw
+    })
+
+    return jsonify({"message": "User registered successfully"}), 201
+
+# ---------------- LOGIN ----------------
 @app.route("/login", methods=["POST"])
 def login():
-    try:
-        data = request.get_json()
-        print("Login incoming data:", data)  # Debug log
+    data = request.get_json()
 
-        username = data.get("username")
-        password = data.get("password")
+    user = users_collection.find_one({"username": data.get("username")})
 
-        user = users_collection.find_one({"username": username})
-        if not user or not check_password_hash(user["password"], password):
-            return jsonify({"error": "Invalid credentials"}), 401
+    if not user or not check_password_hash(user["password"], data.get("password")):
+        return jsonify({"error": "Invalid credentials"}), 401
 
-        token = create_access_token(identity=username)
-        return jsonify({"access_token": token}), 200
-    except Exception as e:
-        print("Login error:", e)
-        return jsonify({"error": "Server error"}), 500
+    token = create_access_token(identity=str(user["username"]))
 
-# ---------------------------
-# 🔹 Upload Resume
-# ---------------------------
+    return jsonify({"access_token": token}), 200
+
+# ---------------- UPLOAD ----------------
 @app.route("/upload", methods=["POST"])
 @jwt_required()
 def upload_resume():
-    try:
-        data = request.get_json()
-        print("Upload incoming data:", data)  # Debug log
+    data = request.get_json()
 
-        filename = data.get("filename")
-        text = data.get("text")
+    filename = data.get("filename")
+    text = data.get("text")
 
-        if not filename or not text:
-            return jsonify({"error": "Missing filename or text"}), 400
+    if not filename or not text:
+        return jsonify({"error": "Missing data"}), 400
 
-        metadata = extract_metadata(text)
+    metadata = extract_metadata(text)
 
-        resumes_collection.insert_one({
-            "filename": filename,
-            "text": text,
-            "metadata": metadata,
-            "uploaded_at": datetime.utcnow()
-        })
+    resumes_collection.insert_one({
+        "filename": filename,
+        "text": text,
+        "metadata": metadata,
+        "uploaded_at": datetime.utcnow()
+    })
 
-        return jsonify({"message": "Resume uploaded successfully"}), 201
-    except Exception as e:
-        print("Upload error:", e)
-        return jsonify({"error": "Server error"}), 500
+    return jsonify({"message": "Resume uploaded successfully"}), 201
 
-# ---------------------------
-# 🔹 Rank Resumes
-# ---------------------------
+# ---------------- RANK ----------------
 @app.route("/rank", methods=["POST"])
 @jwt_required()
 def rank():
-    try:
-        data = request.get_json()
-        print("Rank incoming data:", data)  # Debug log
+    data = request.get_json()
 
-        skills = data.get("skills", [])
-        job_desc = data.get("job_description", "")
+    skills = data.get("skills", [])
+    job_desc = data.get("job_description", "")
 
-        resumes_data = list(resumes_collection.find())
-        resumes = [r["text"] for r in resumes_data]
+    resumes_data = list(resumes_collection.find())
+    resumes = [r["text"] for r in resumes_data]
 
-        results = rank_resumes(resumes, job_desc, skills)
-        for i, r in enumerate(results):
-            r["metadata"] = resumes_data[i].get("metadata", {})
+    results = rank_resumes(resumes, job_desc, skills)
 
-        analytics = generate_analytics(results, skills)
+    for i, r in enumerate(results):
+        r["metadata"] = resumes_data[i].get("metadata", {})
 
-        return jsonify({
-            "total_resumes": len(resumes),
-            "results": results,
-            "analytics": analytics
-        })
-    except Exception as e:
-        print("Rank error:", e)
-        return jsonify({"error": "Server error"}), 500
+    analytics = generate_analytics(results, skills)
 
-# ---------------------------
-# 🔹 Health Check
-# ---------------------------
+    return jsonify({
+        "total_resumes": len(resumes),
+        "results": results,
+        "analytics": analytics
+    })
+
+# ---------------- HEALTH CHECK ----------------
 @app.route("/", methods=["GET"])
 def home():
-    return jsonify({"message": "Backend is running!"})
+    return jsonify({"message": "Backend running successfully"})
 
-# ---------------------------
-# 🔹 Run App
-# ---------------------------
+# ---------------- RUN ----------------
 if __name__ == "__main__":
-    app.run(host="0.0.0.0", port=5000)
+    port = int(os.environ.get("PORT", 5000))
+    app.run(host="0.0.0.0", port=port)
