@@ -6,19 +6,30 @@ from flask_jwt_extended import JWTManager, jwt_required, create_access_token
 from flasgger import Swagger
 from flask_cors import CORS
 from werkzeug.security import generate_password_hash, check_password_hash
-
 from db import resumes_collection, users_collection
 from model import rank_resumes, generate_analytics, extract_metadata
 
 app = Flask(__name__)
-app.config["JWT_SECRET_KEY"] = "super-secret-key"  # ⚠️ change in production
+
+# Use environment variable for secret key in production
+app.config["JWT_SECRET_KEY"] = os.getenv("JWT_SECRET_KEY", "super-secret-key")
 app.config["JWT_ACCESS_TOKEN_EXPIRES"] = timedelta(days=365)
+
 jwt = JWTManager(app)
 swagger = Swagger(app)
-CORS(app, origins=["http://localhost:5173"])
+
+# Allow both local dev and deployed frontend
+CORS(app, origins=[
+    "http://localhost:5173",
+    "https://fresume-henna.vercel.app"  # replace with your actual Vercel domain
+])
 
 UPLOAD_FOLDER = "resumes"
 os.makedirs(UPLOAD_FOLDER, exist_ok=True)
+
+@app.route("/")
+def home():
+    return "Resume Screening Backend Running"
 
 def extract_text(file_path):
     """Extract text from PDF resumes using PyMuPDF"""
@@ -102,11 +113,7 @@ def rank():
         "analytics": analytics
     })
 
-# ------------------ HOME ------------------
-
-@app.route('/')
-def home():
-    return "Resume Screening Backend Running"
+# ------------------ MAIN ------------------
 
 if __name__ == "__main__":
     app.run(debug=True)
