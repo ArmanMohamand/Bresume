@@ -12,6 +12,12 @@ app = Flask(__name__)
 
 # ✅ JWT secret key (must be set in Render)
 app.config["JWT_SECRET_KEY"] = os.getenv("JWT_SECRET_KEY", "super-secret-key")
+
+# 🔹 Explicitly set algorithm and expiry
+from datetime import timedelta
+app.config["JWT_ALGORITHM"] = "HS256"
+app.config["JWT_ACCESS_TOKEN_EXPIRES"] = timedelta(hours=1)  # token valid for 1 hour
+
 jwt = JWTManager(app)
 
 # ✅ Allow requests from local dev and all Vercel preview domains
