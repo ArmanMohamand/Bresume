@@ -34,7 +34,9 @@ def add_cors_headers(response):
 @app.route("/register", methods=["POST"])
 def register():
     try:
-        data = request.get_json()   # ✅ JSON instead of form
+        data = request.get_json()
+        print("Register incoming data:", data)  # Debug log
+
         username = data.get("username")
         password = data.get("password")
 
@@ -57,7 +59,9 @@ def register():
 @app.route("/login", methods=["POST"])
 def login():
     try:
-        data = request.get_json()   # ✅ JSON instead of form
+        data = request.get_json()
+        print("Login incoming data:", data)  # Debug log
+
         username = data.get("username")
         password = data.get("password")
 
@@ -79,6 +83,8 @@ def login():
 def upload_resume():
     try:
         data = request.get_json()
+        print("Upload incoming data:", data)  # Debug log
+
         filename = data.get("filename")
         text = data.get("text")
 
@@ -107,6 +113,8 @@ def upload_resume():
 def rank():
     try:
         data = request.get_json()
+        print("Rank incoming data:", data)  # Debug log
+
         skills = data.get("skills", [])
         job_desc = data.get("job_description", "")
 
