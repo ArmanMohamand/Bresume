@@ -1,9 +1,12 @@
 from flask import Flask, request, jsonify
 from flask_cors import CORS
-from flask_jwt_extended import JWTManager, create_access_token
+from flask_jwt_extended import JWTManager, create_access_token, jwt_required
 from werkzeug.security import generate_password_hash, check_password_hash
-from pymongo import MongoClient
+from datetime import datetime
 import os
+
+from db import users_collection, resumes_collection
+from model import rank_resumes, generate_analytics, extract_metadata
 
 app = Flask(__name__)
 
@@ -17,22 +20,15 @@ CORS(app, resources={r"/*": {"origins": [
     "https://fresume-henna.vercel.app"
 ]}}, supports_credentials=True)
 
-# ✅ MongoDB Atlas connection
-MONGO_URI = os.getenv("MONGO_URI")
-client = MongoClient(MONGO_URI)
-db = client["resumes"]
-
-users_collection = db["users"]
-resumes_collection = db["resumes"]
-
 # ---------------------------
 # 🔹 Register Route
 # ---------------------------
 @app.route("/register", methods=["POST"])
 def register():
     try:
-        username = request.form.get("username")
-        password = request.form.get("password")
+        data = request.get_json()
+        username = data.get("username")
+        password = data.get("password")
 
         if not username or not password:
             return jsonify({"error": "Missing username or password"}), 400
@@ -53,8 +49,9 @@ def register():
 @app.route("/login", methods=["POST"])
 def login():
     try:
-        username = request.form.get("username")
-        password = request.form.get("password")
+        data = request.get_json()
+        username = data.get("username")
+        password = data.get("password")
 
         user = users_collection.find_one({"username": username})
         if not user or not check_password_hash(user["password"], password):
@@ -64,6 +61,63 @@ def login():
         return jsonify({"access_token": token}), 200
     except Exception as e:
         print("Login error:", e)
+        return jsonify({"error": "Server error"}), 500
+
+# ---------------------------
+# 🔹 Upload Resume
+# ---------------------------
+@app.route("/upload", methods=["POST"])
+@jwt_required()
+def upload_resume():
+    try:
+        data = request.get_json()
+        filename = data.get("filename")
+        text = data.get("text")
+
+        if not filename or not text:
+            return jsonify({"error": "Missing filename or text"}), 400
+
+        metadata = extract_metadata(text)
+
+        resumes_collection.insert_one({
+            "filename": filename,
+            "text": text,
+            "metadata": metadata,
+            "uploaded_at": datetime.utcnow()
+        })
+
+        return jsonify({"message": "Resume uploaded successfully"}), 201
+    except Exception as e:
+        print("Upload error:", e)
+        return jsonify({"error": "Server error"}), 500
+
+# ---------------------------
+# 🔹 Rank Resumes
+# ---------------------------
+@app.route("/rank", methods=["POST"])
+@jwt_required()
+def rank():
+    try:
+        data = request.get_json()
+        skills = data.get("skills", [])
+        job_desc = data.get("job_description", "")
+
+        resumes_data = list(resumes_collection.find())
+        resumes = [r["text"] for r in resumes_data]
+
+        results = rank_resumes(resumes, job_desc, skills)
+        for i, r in enumerate(results):
+            r["metadata"] = resumes_data[i].get("metadata", {})
+
+        analytics = generate_analytics(results, skills)
+
+        return jsonify({
+            "total_resumes": len(resumes),
+            "results": results,
+            "analytics": analytics
+        })
+    except Exception as e:
+        print("Rank error:", e)
         return jsonify({"error": "Server error"}), 500
 
 # ---------------------------
