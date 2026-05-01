@@ -7,6 +7,7 @@ COMMON_SKILLS = [
     "kubernetes","tensorflow","pandas","numpy"
 ]
 
+# ---------------- METADATA ----------------
 def extract_metadata(text):
     email = re.search(r'[\w\.-]+@[\w\.-]+\.\w+', text)
     phone = re.search(r'\+?\d[\d -]{8,}\d', text)
@@ -16,10 +17,14 @@ def extract_metadata(text):
         "phone": phone.group(0) if phone else None
     }
 
+
+# ---------------- SKILL EXTRACTION ----------------
 def extract_skills(text):
     text = text.lower()
     return [s for s in COMMON_SKILLS if s in text]
 
+
+# ---------------- RANKING ----------------
 def rank_resumes(resumes, job_desc="", required_skills=None):
     job_keywords = set(re.findall(r'\w+', job_desc.lower()))
     results = []
@@ -28,7 +33,8 @@ def rank_resumes(resumes, job_desc="", required_skills=None):
         skills = extract_skills(resume)
 
         if required_skills:
-            skills = [s for s in skills if s.lower() in [r.lower() for r in required_skills]]
+            req_set = set(s.lower() for s in required_skills)
+            skills = [s for s in skills if s.lower() in req_set]
 
         matched_keywords = [k for k in job_keywords if k in resume.lower()]
 
@@ -44,6 +50,8 @@ def rank_resumes(resumes, job_desc="", required_skills=None):
 
     return sorted(results, key=lambda x: x["score"], reverse=True)
 
+
+# ---------------- ANALYTICS ----------------
 def generate_analytics(results, required_skills=None):
     skill_counts = Counter()
     keyword_counts = Counter()

@@ -4,7 +4,6 @@ from flask_jwt_extended import JWTManager, create_access_token, jwt_required
 from werkzeug.security import generate_password_hash, check_password_hash
 from datetime import datetime
 import os
-import re
 
 from db import users_collection, resumes_collection
 from model import rank_resumes, generate_analytics, extract_metadata
@@ -13,6 +12,10 @@ app = Flask(__name__)
 
 # ---------------- JWT CONFIG ----------------
 app.config["JWT_SECRET_KEY"] = os.getenv("JWT_SECRET_KEY")
+
+# ✅ FIX 1: explicitly define Bearer token type
+app.config["JWT_HEADER_TYPE"] = "Bearer"
+
 if not app.config["JWT_SECRET_KEY"]:
     raise Exception("JWT_SECRET_KEY is missing")
 
@@ -26,6 +29,7 @@ CORS(app, resources={r"/*": {
         "https://fresume-git-main-arman-mohamand-projects.vercel.app"
     ]
 }}, supports_credentials=True)
+
 
 # ---------------- REGISTER ----------------
 @app.route("/register", methods=["POST"])
@@ -50,6 +54,7 @@ def register():
 
     return jsonify({"message": "User registered successfully"}), 201
 
+
 # ---------------- LOGIN ----------------
 @app.route("/login", methods=["POST"])
 def login():
@@ -60,9 +65,11 @@ def login():
     if not user or not check_password_hash(user["password"], data.get("password")):
         return jsonify({"error": "Invalid credentials"}), 401
 
-    token = create_access_token(identity=str(user["username"]))
+    # FIXED: correct identity usage
+    token = create_access_token(identity=user["username"])
 
     return jsonify({"access_token": token}), 200
+
 
 # ---------------- UPLOAD ----------------
 @app.route("/upload", methods=["POST"])
@@ -74,7 +81,10 @@ def upload_resume():
     text = data.get("text")
 
     if not filename or not text:
-        return jsonify({"error": "Missing data"}), 400
+        return jsonify({"error": "Missing filename or text"}), 400
+
+    if len(text) > 200000:
+        return jsonify({"error": "Resume too large"}), 400
 
     metadata = extract_metadata(text)
 
@@ -87,22 +97,28 @@ def upload_resume():
 
     return jsonify({"message": "Resume uploaded successfully"}), 201
 
+
 # ---------------- RANK ----------------
 @app.route("/rank", methods=["POST"])
 @jwt_required()
 def rank():
     data = request.get_json()
 
-    skills = data.get("skills", [])
+    skills = data.get("required_skills", [])  # FIXED key mismatch
     job_desc = data.get("job_description", "")
 
-    resumes_data = list(resumes_collection.find())
+    resumes_data = list(resumes_collection.find({}, {"_id": 0}))
     resumes = [r["text"] for r in resumes_data]
 
     results = rank_resumes(resumes, job_desc, skills)
 
-    for i, r in enumerate(results):
-        r["metadata"] = resumes_data[i].get("metadata", {})
+    # FIXED: safe mapping
+    for r in results:
+        idx = r["resume_id"] - 1
+        if 0 <= idx < len(resumes_data):
+            r["metadata"] = resumes_data[idx].get("metadata", {})
+        else:
+            r["metadata"] = {}
 
     analytics = generate_analytics(results, skills)
 
@@ -112,10 +128,12 @@ def rank():
         "analytics": analytics
     })
 
+
 # ---------------- HEALTH CHECK ----------------
 @app.route("/", methods=["GET"])
 def home():
     return jsonify({"message": "Backend running successfully"})
+
 
 # ---------------- RUN ----------------
 if __name__ == "__main__":
