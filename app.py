@@ -118,6 +118,7 @@ def rank():
         idx = r["resume_id"] - 1
         if 0 <= idx < len(resumes_data):
             r["metadata"] = resumes_data[idx].get("metadata", {})
+            r["filename"] = resumes_data[idx].get("filename", "")
 
     analytics = generate_analytics(results, skills)
 
