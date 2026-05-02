@@ -113,9 +113,11 @@ def rank():
 
     results = rank_resumes(resumes, job_desc, skills)
 
+    # Attach metadata (email, phone, etc.) to each result
     for r in results:
         idx = r["resume_id"] - 1
-        r["metadata"] = resumes_data[idx].get("metadata", {}) if 0 <= idx < len(resumes_data) else {}
+        if 0 <= idx < len(resumes_data):
+            r["metadata"] = resumes_data[idx].get("metadata", {})
 
     analytics = generate_analytics(results, skills)
 
@@ -124,7 +126,6 @@ def rank():
         "results": results,
         "analytics": analytics
     })
-
 
 # ---------------- HEALTH ----------------
 @app.route("/", methods=["GET"])
