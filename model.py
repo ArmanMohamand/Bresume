@@ -273,18 +273,25 @@ def extract_metadata(text):
     # Projects: capture section lines under "Projects"
     projects_section = re.findall(r'Projects?\s*[\n\r]+([\s\S]+?)(?=\n\n|$)', text, re.IGNORECASE)
     projects = []
+    project_links = []
+
     if projects_section:
         for line in projects_section[0].splitlines():
             line = line.strip()
             if line and not line.lower().startswith("projects"):
                 projects.append(line)
+                # Extract any URL inside the line
+                url_match = re.search(r'https?://[^\s\)]+', line)
+                if url_match:
+                    project_links.append(url_match.group(0))
 
     return {
         "email": email.group(0) if email else None,
         "phone": phone.group(0) if phone else None,
         "github": github.group(0) if github else None,
         "linkedin": linkedin.group(0) if linkedin else None,
-        "projects": projects
+        "projects": projects,
+        "project_links": project_links
     }
 
 # ---------------- SKILL EXTRACTION ----------------
