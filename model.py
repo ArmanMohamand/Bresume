@@ -164,13 +164,34 @@ COMMON_SKILLS = [
 ]
 
 # ---------------- METADATA ----------------
+# def extract_metadata(text):
+#     email = re.search(r'[\w\.-]+@[\w\.-]+\.\w+', text)
+#     phone = re.search(r'\+?\d[\d -]{8,}\d', text)
+
+#     return {
+#         "email": email.group(0) if email else None,
+#         "phone": phone.group(0) if phone else None
+#     }
+
 def extract_metadata(text):
     email = re.search(r'[\w\.-]+@[\w\.-]+\.\w+', text)
     phone = re.search(r'\+?\d[\d -]{8,}\d', text)
 
+    # Capture GitHub links
+    github = re.search(r'(https?://github\.com/[^\s]+)', text)
+
+    # Capture LinkedIn (optional, for completeness)
+    linkedin = re.search(r'(https?://(www\.)?linkedin\.com/[^\s]+)', text)
+
+    # Capture project names (lines starting with "Project:" or "Projects:")
+    projects = re.findall(r'Project[s]?:\s*([^\n,]+)', text, re.IGNORECASE)
+
     return {
         "email": email.group(0) if email else None,
-        "phone": phone.group(0) if phone else None
+        "phone": phone.group(0) if phone else None,
+        "github": github.group(0) if github else None,
+        "linkedin": linkedin.group(0) if linkedin else None,
+        "projects": projects if projects else []
     }
 
 # ---------------- SKILL EXTRACTION ----------------
