@@ -907,31 +907,30 @@ def upload_resume():
     try:
         current_user = get_jwt_identity()
 
-        print("CURRENT USER:", current_user)
-
-        data = request.get_json()
-
-        print("REQUEST JSON:", data)
-        print("TYPE:", type(data))
+        data = request.get_json(force=True, silent=True)
 
         if not data:
-            return jsonify({"error": "No JSON received"}), 422
+            return jsonify({
+                "error": "No JSON data received"
+            }), 422
 
-        filename = data.get("filename")
-        text = data.get("text")
-
-        print("FILENAME:", filename)
-        print("TEXT EXISTS:", bool(text))
-        print("TEXT LENGTH:", len(text) if text else 0)
+        filename = data.get("filename", "")
+        text = data.get("text", "")
 
         if not filename:
-            return jsonify({"error": "Filename missing"}), 422
+            return jsonify({
+                "error": "Filename missing"
+            }), 422
 
         if not text:
-            return jsonify({"error": "Text missing"}), 422
+            return jsonify({
+                "error": "Text missing"
+            }), 422
 
         if not text.strip():
-            return jsonify({"error": "Text empty after strip"}), 422
+            return jsonify({
+                "error": "Text empty"
+            }), 422
 
         resumes_collection.insert_one({
             "filename": filename,
@@ -944,8 +943,6 @@ def upload_resume():
         }), 201
 
     except Exception as e:
-        print("UPLOAD ERROR:", str(e))
-
         return jsonify({
             "error": str(e)
         }), 500
