@@ -162,7 +162,7 @@ if not app.config["JWT_SECRET_KEY"]:
 
 jwt = JWTManager(app)
 
-# ---------------- CORS ----------------
+# ---------------- GLOBAL CORS ----------------
 CORS(app, resources={r"/*": {
     "origins": [
         "http://localhost:5173",
@@ -222,19 +222,22 @@ def login():
     return jsonify({"access_token": token}), 200
 
 # ---------------- UPLOAD ----------------
-@app.route("/upload", methods=["POST", "OPTIONS"])
-@jwt_required(optional=True)  # allow OPTIONS preflight without JWT
+@app.route("/upload", methods=["POST"])
+@jwt_required()
 def upload_resume():
-    if request.method == "OPTIONS":
-        return jsonify({"status": "ok"}), 200
-
     current_user = get_jwt_identity()
     if not current_user:
         return jsonify({"error": "Unauthorized"}), 401
 
     data = request.get_json()
-    filename = data.get("filename")
-    text = data.get("text")
+    if not data or "filename" not in data or "text" not in data:
+        return jsonify({"error": "Missing filename or text"}), 422
+
+    filename = data["filename"]
+    text = data["text"]
+
+    if not text.strip():
+        return jsonify({"error": "Resume text is empty"}), 422
 
     resumes_collection.insert_one({
         "filename": filename,
@@ -244,17 +247,17 @@ def upload_resume():
     return jsonify({"message": "Resume uploaded successfully"}), 201
 
 # ---------------- RANK ----------------
-@app.route("/rank", methods=["POST", "OPTIONS"])
-@jwt_required(optional=True)
+@app.route("/rank", methods=["POST"])
+@jwt_required()
 def rank():
-    if request.method == "OPTIONS":
-        return jsonify({"status": "ok"}), 200
-
     current_user = get_jwt_identity()
     if not current_user:
         return jsonify({"error": "Unauthorized"}), 401
 
     data = request.get_json()
+    if not data:
+        return jsonify({"error": "Missing request body"}), 422
+
     job_description = data.get("job_description", "")
     required_skills = data.get("required_skills", [])
 
@@ -299,6 +302,7 @@ def home():
 if __name__ == "__main__":
     port = int(os.environ.get("PORT", 5000))
     app.run(host="0.0.0.0", port=port)
+
 
 
 # from flask import Flask, request, jsonify
