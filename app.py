@@ -141,7 +141,9 @@
 
 from flask import Flask, request, jsonify
 from flask_cors import CORS
-from flask_jwt_extended import JWTManager, create_access_token, jwt_required, get_jwt_identity
+from flask_jwt_extended import (
+    JWTManager, create_access_token, jwt_required, get_jwt_identity
+)
 from werkzeug.security import generate_password_hash, check_password_hash
 import os
 
@@ -166,7 +168,9 @@ CORS(app, resources={r"/*": {
         "http://localhost:5173",
         "https://fresume-nine.vercel.app",
         "https://fresume-git-main-arman-mohamand-projects.vercel.app"
-    ]
+    ],
+    "methods": ["GET", "POST", "DELETE", "OPTIONS"],
+    "allow_headers": ["Authorization", "Content-Type"]
 }})
 
 # ---------------- ADMIN EMAILS ----------------
@@ -179,7 +183,6 @@ ADMIN_EMAILS = [
 @app.route("/register", methods=["POST"])
 def register():
     data = request.get_json()
-
     email = data.get("email")
     username = data.get("username")
     password = data.get("password")
@@ -187,22 +190,18 @@ def register():
     if not email or not username or not password:
         return jsonify({"error": "Missing fields"}), 400
 
-    # Ensure email is unique
     if users_collection.find_one({"email": email}):
         return jsonify({"error": "Email already registered"}), 400
 
-    # Ensure username is unique
     if users_collection.find_one({"username": username}):
         return jsonify({"error": "Username already taken"}), 400
 
     hashed_pw = generate_password_hash(password)
-
     users_collection.insert_one({
         "email": email,
         "username": username,
         "password": hashed_pw
     })
-
     return jsonify({"message": "User registered successfully"}), 201
 
 # ---------------- LOGIN ----------------
@@ -214,16 +213,56 @@ def login():
     if not user or not check_password_hash(user["password"], data.get("password")):
         return jsonify({"error": "Invalid credentials"}), 401
 
-    # Assign role based on email
     role = "admin" if user["email"] in ADMIN_EMAILS else "employee"
-
     token = create_access_token(identity={
         "email": user["email"],
         "username": user["username"],
         "role": role
     })
-
     return jsonify({"access_token": token}), 200
+
+# ---------------- UPLOAD ----------------
+@app.route("/upload", methods=["POST", "OPTIONS"])
+@jwt_required(optional=True)  # allow OPTIONS preflight without JWT
+def upload_resume():
+    if request.method == "OPTIONS":
+        return jsonify({"status": "ok"}), 200
+
+    current_user = get_jwt_identity()
+    if not current_user:
+        return jsonify({"error": "Unauthorized"}), 401
+
+    data = request.get_json()
+    filename = data.get("filename")
+    text = data.get("text")
+
+    resumes_collection.insert_one({
+        "filename": filename,
+        "text": text,
+        "uploaded_by": current_user["email"]
+    })
+    return jsonify({"message": "Resume uploaded successfully"}), 201
+
+# ---------------- RANK ----------------
+@app.route("/rank", methods=["POST", "OPTIONS"])
+@jwt_required(optional=True)
+def rank():
+    if request.method == "OPTIONS":
+        return jsonify({"status": "ok"}), 200
+
+    current_user = get_jwt_identity()
+    if not current_user:
+        return jsonify({"error": "Unauthorized"}), 401
+
+    data = request.get_json()
+    job_description = data.get("job_description", "")
+    required_skills = data.get("required_skills", [])
+
+    resumes = list(resumes_collection.find({}, {"_id": 0}))
+    ranked = rank_resumes(resumes, job_description, required_skills)
+    analytics = generate_analytics(ranked)
+
+    return jsonify({"ranked": ranked, "analytics": analytics}), 200
 
 # ---------------- JOBDESC ROUTES ----------------
 @app.route("/jobdesc/save", methods=["POST"])
@@ -232,7 +271,6 @@ def save_jobdesc():
     current_user = get_jwt_identity()
     if current_user["role"] != "admin":
         return jsonify({"error": "Only admins can add job descriptions"}), 403
-
     data = request.get_json()
     # save job description logic...
     return jsonify({"message": "Job description saved"}), 201
@@ -243,14 +281,12 @@ def delete_jobdesc(id):
     current_user = get_jwt_identity()
     if current_user["role"] != "admin":
         return jsonify({"error": "Only admins can delete job descriptions"}), 403
-
     # delete logic...
     return jsonify({"message": "Job description deleted"}), 200
 
 @app.route("/jobdesc/list", methods=["GET"])
 @jwt_required()
 def list_jobdesc():
-    # employees and admins can view
     entries = list(resumes_collection.find({}, {"_id": 0}))
     return jsonify(entries), 200
 
