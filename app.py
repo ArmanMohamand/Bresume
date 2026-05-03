@@ -143,7 +143,6 @@ from flask import Flask, request, jsonify
 from flask_cors import CORS
 from flask_jwt_extended import JWTManager, create_access_token, jwt_required, get_jwt_identity
 from werkzeug.security import generate_password_hash, check_password_hash
-from datetime import datetime
 import os
 
 from db import users_collection, resumes_collection
@@ -181,18 +180,25 @@ ADMIN_EMAILS = [
 def register():
     data = request.get_json()
 
+    email = data.get("email")
     username = data.get("username")
     password = data.get("password")
 
-    if not username or not password:
+    if not email or not username or not password:
         return jsonify({"error": "Missing fields"}), 400
 
+    # Ensure email is unique
+    if users_collection.find_one({"email": email}):
+        return jsonify({"error": "Email already registered"}), 400
+
+    # Ensure username is unique
     if users_collection.find_one({"username": username}):
-        return jsonify({"error": "User already exists"}), 400
+        return jsonify({"error": "Username already taken"}), 400
 
     hashed_pw = generate_password_hash(password)
 
     users_collection.insert_one({
+        "email": email,
         "username": username,
         "password": hashed_pw
     })
@@ -203,15 +209,16 @@ def register():
 @app.route("/login", methods=["POST"])
 def login():
     data = request.get_json()
-    user = users_collection.find_one({"username": data.get("username")})
+    user = users_collection.find_one({"email": data.get("email")})
 
     if not user or not check_password_hash(user["password"], data.get("password")):
         return jsonify({"error": "Invalid credentials"}), 401
 
-    # Assign role based on email/username
-    role = "admin" if user["username"] in ADMIN_EMAILS else "employee"
+    # Assign role based on email
+    role = "admin" if user["email"] in ADMIN_EMAILS else "employee"
 
     token = create_access_token(identity={
+        "email": user["email"],
         "username": user["username"],
         "role": role
     })
