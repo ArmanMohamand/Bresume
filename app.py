@@ -904,37 +904,51 @@ def login():
 @app.route("/upload", methods=["POST"])
 @jwt_required()
 def upload_resume():
-    current_user = get_jwt_identity()
+    try:
+        current_user = get_jwt_identity()
 
-    if not current_user:
-        return jsonify({"error": "Unauthorized"}), 401
+        print("CURRENT USER:", current_user)
 
-    data = request.get_json()
+        data = request.get_json()
 
-    print("Incoming Upload JSON:", data, file=sys.stderr)
-    print("Data Type:", type(data), file=sys.stderr)
+        print("REQUEST JSON:", data)
+        print("TYPE:", type(data))
 
-    if not data:
-        return jsonify({"error": "Missing request body"}), 422
+        if not data:
+            return jsonify({"error": "No JSON received"}), 422
 
-    filename = data.get("filename")
-    text = data.get("text")
+        filename = data.get("filename")
+        text = data.get("text")
 
-    if not filename or not text:
-        return jsonify({"error": "Missing filename or text"}), 422
+        print("FILENAME:", filename)
+        print("TEXT EXISTS:", bool(text))
+        print("TEXT LENGTH:", len(text) if text else 0)
 
-    if not text.strip():
-        return jsonify({"error": "Resume text is empty"}), 422
+        if not filename:
+            return jsonify({"error": "Filename missing"}), 422
 
-    resumes_collection.insert_one({
-        "filename": filename,
-        "text": text,
-        "uploaded_by": current_user["email"],
-    })
+        if not text:
+            return jsonify({"error": "Text missing"}), 422
 
-    return jsonify({"message": "Resume uploaded successfully"}), 201
+        if not text.strip():
+            return jsonify({"error": "Text empty after strip"}), 422
 
+        resumes_collection.insert_one({
+            "filename": filename,
+            "text": text,
+            "uploaded_by": current_user.get("email", "unknown")
+        })
 
+        return jsonify({
+            "message": "Resume uploaded successfully"
+        }), 201
+
+    except Exception as e:
+        print("UPLOAD ERROR:", str(e))
+
+        return jsonify({
+            "error": str(e)
+        }), 500
 # ---------------- RANK ----------------
 @app.route("/rank", methods=["POST"])
 @jwt_required()
