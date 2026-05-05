@@ -15,7 +15,7 @@ PyMuPDF==1.27.2
 gunicorn==25.3.0
 python-dotenv==1.2.2
 
-numpy==1.26.3
+numpy>=1.26,<2.0
 scipy==1.11.3
 scikit-learn==1.5.2
 joblib==1.5.3
