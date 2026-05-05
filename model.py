@@ -183,10 +183,134 @@
 #     }
 
 
-import re
-from sklearn.feature_extraction.text import TfidfVectorizer
-from sklearn.metrics.pairwise import cosine_similarity
+# import re
+# from sklearn.feature_extraction.text import TfidfVectorizer
+# from sklearn.metrics.pairwise import cosine_similarity
 
+
+# # ---------------- CONTACT ----------------
+# def extract_contact(text):
+#     email = re.search(r'[\w\.-]+@[\w\.-]+\.\w+', text)
+#     phone = re.search(r'\+?\d[\d\s-]{8,}\d', text)
+
+#     return {
+#         "email": email.group(0) if email else None,
+#         "phone": phone.group(0) if phone else None
+#     }
+
+
+# # ---------------- NAME (ML) ----------------
+# def extract_name(text):
+#     # Look for "Name: XYZ" format first
+#     match = re.search(r'Name[:\-]\s*([A-Za-z ]+)', text)
+#     if match:
+#         return match.group(1).strip()
+
+#     # fallback: first capitalized full name
+#     match = re.search(r'([A-Z][a-z]+ [A-Z][a-z]+)', text)
+#     if match:
+#         return match.group(1).strip()
+
+#     return None
+
+
+# # ---------------- SKILLS ----------------
+# SKILLS_DB = [
+#     "python", "java", "c++", "javascript",
+#     "react", "node", "flask", "django",
+#     "mongodb", "sql", "docker", "aws"
+# ]
+
+# def extract_skills(text):
+#     text = text.lower()
+#     return [s for s in SKILLS_DB if s in text]
+
+
+# # ---------------- LINKS ----------------
+# def extract_links(text):
+#     # URLs
+#     github_url = re.search(r'https?://github\.com/[^\s]+', text)
+#     linkedin_url = re.search(r'https?://(www\.)?linkedin\.com/[^\s]+', text)
+
+#     # usernames
+#     github_user = re.search(r'GitHub[:\s]+([A-Za-z0-9_-]+)', text, re.IGNORECASE)
+#     linkedin_user = re.search(r'LinkedIn[:\s]+([A-Za-z0-9\s_-]+)', text, re.IGNORECASE)
+
+#     github = None
+#     linkedin = None
+
+#     if github_url:
+#         github = github_url.group(0)
+#     elif github_user:
+#         username = github_user.group(1).strip()
+#         github = f"https://github.com/{username}"
+
+#     if linkedin_url:
+#         linkedin = linkedin_url.group(0)
+#     elif linkedin_user:
+#         name = linkedin_user.group(1).strip().replace(" ", "-")
+#         linkedin = f"https://linkedin.com/in/{name}"
+
+#     return {
+#         "github": github,
+#         "linkedin": linkedin
+#     }
+
+
+# # ---------------- ML RANKING ----------------
+# def rank_resumes(resumes, job_desc="", required_skills=None):
+
+#     texts = [job_desc] + [r.get("text", "") for r in resumes]
+
+#     vectorizer = TfidfVectorizer(stop_words="english")
+#     tfidf = vectorizer.fit_transform(texts)
+
+#     job_vector = tfidf[0]
+#     resume_vectors = tfidf[1:]
+
+#     similarities = cosine_similarity(job_vector, resume_vectors)[0]
+
+#     results = []
+
+#     for i, resume in enumerate(resumes):
+#         text = resume.get("text", "")
+
+#         name = extract_name(text)
+#         contact = extract_contact(text)
+#         skills = extract_skills(text)
+#         links = extract_links(text)
+
+#         score = float(similarities[i])
+
+#         results.append({
+#             "resume_id": i + 1,
+#             "filename": resume.get("filename"),
+#             "uploaded_by": resume.get("uploaded_by"),
+
+#             "score": score,
+#             "name": name,
+#             "skills": skills,
+
+#             "email": contact["email"],
+#             "phone": contact["phone"],
+#             "github": links["github"],
+#             "linkedin": links["linkedin"]
+#         })
+
+#     return sorted(results, key=lambda x: x["score"], reverse=True)
+
+
+# # ---------------- ANALYTICS ----------------
+# def generate_analytics(results):
+#     scores = [r["score"] for r in results]
+
+#     return {
+#         "scores": scores,
+#         "average_score": sum(scores) / len(scores) if scores else 0
+#     }
+
+
+import re
 
 # ---------------- CONTACT ----------------
 def extract_contact(text):
@@ -199,27 +323,23 @@ def extract_contact(text):
     }
 
 
-# ---------------- NAME (ML) ----------------
+# ---------------- NAME ----------------
 def extract_name(text):
-    # Look for "Name: XYZ" format first
     match = re.search(r'Name[:\-]\s*([A-Za-z ]+)', text)
     if match:
         return match.group(1).strip()
 
-    # fallback: first capitalized full name
     match = re.search(r'([A-Z][a-z]+ [A-Z][a-z]+)', text)
-    if match:
-        return match.group(1).strip()
-
-    return None
+    return match.group(1).strip() if match else None
 
 
-# ---------------- SKILLS ----------------
+# ---------------- SKILLS DATABASE ----------------
 SKILLS_DB = [
     "python", "java", "c++", "javascript",
     "react", "node", "flask", "django",
     "mongodb", "sql", "docker", "aws"
 ]
+
 
 def extract_skills(text):
     text = text.lower()
@@ -228,73 +348,63 @@ def extract_skills(text):
 
 # ---------------- LINKS ----------------
 def extract_links(text):
-    # URLs
     github_url = re.search(r'https?://github\.com/[^\s]+', text)
     linkedin_url = re.search(r'https?://(www\.)?linkedin\.com/[^\s]+', text)
 
-    # usernames
     github_user = re.search(r'GitHub[:\s]+([A-Za-z0-9_-]+)', text, re.IGNORECASE)
     linkedin_user = re.search(r'LinkedIn[:\s]+([A-Za-z0-9\s_-]+)', text, re.IGNORECASE)
 
-    github = None
-    linkedin = None
+    github = github_url.group(0) if github_url else (
+        f"https://github.com/{github_user.group(1).strip()}" if github_user else None
+    )
 
-    if github_url:
-        github = github_url.group(0)
-    elif github_user:
-        username = github_user.group(1).strip()
-        github = f"https://github.com/{username}"
+    linkedin = linkedin_url.group(0) if linkedin_url else (
+        f"https://linkedin.com/in/{linkedin_user.group(1).strip().replace(' ', '-')}" if linkedin_user else None
+    )
 
-    if linkedin_url:
-        linkedin = linkedin_url.group(0)
-    elif linkedin_user:
-        name = linkedin_user.group(1).strip().replace(" ", "-")
-        linkedin = f"https://linkedin.com/in/{name}"
-
-    return {
-        "github": github,
-        "linkedin": linkedin
-    }
+    return {"github": github, "linkedin": linkedin}
 
 
-# ---------------- ML RANKING ----------------
+# ---------------- MAIN RANKING (SKILL BASED) ----------------
 def rank_resumes(resumes, job_desc="", required_skills=None):
 
-    texts = [job_desc] + [r.get("text", "") for r in resumes]
-
-    vectorizer = TfidfVectorizer(stop_words="english")
-    tfidf = vectorizer.fit_transform(texts)
-
-    job_vector = tfidf[0]
-    resume_vectors = tfidf[1:]
-
-    similarities = cosine_similarity(job_vector, resume_vectors)[0]
+    required_skills = [s.lower() for s in (required_skills or [])]
 
     results = []
 
     for i, resume in enumerate(resumes):
-        text = resume.get("text", "")
+        text = resume.get("text", "").lower()
 
-        name = extract_name(text)
-        contact = extract_contact(text)
-        skills = extract_skills(text)
-        links = extract_links(text)
+        resume_skills = extract_skills(text)
 
-        score = float(similarities[i])
+        matched_skills = list(set(required_skills) & set(resume_skills))
+
+        # ---------------- SCORE LOGIC ----------------
+        if required_skills:
+            skill_score = len(matched_skills) / len(required_skills)
+        else:
+            skill_score = len(resume_skills) / len(SKILLS_DB)
+
+        # small bonus for overall skill richness
+        richness_bonus = len(resume_skills) / len(SKILLS_DB)
+
+        score = (skill_score * 0.85) + (richness_bonus * 0.15)
 
         results.append({
             "resume_id": i + 1,
             "filename": resume.get("filename"),
             "uploaded_by": resume.get("uploaded_by"),
 
-            "score": score,
-            "name": name,
-            "skills": skills,
+            "score": round(score, 4),
 
-            "email": contact["email"],
-            "phone": contact["phone"],
-            "github": links["github"],
-            "linkedin": links["linkedin"]
+            "matched_skills": matched_skills,
+            "all_skills": resume_skills,
+
+            "name": extract_name(text),
+            "email": extract_contact(text)["email"],
+            "phone": extract_contact(text)["phone"],
+            "github": extract_links(text)["github"],
+            "linkedin": extract_links(text)["linkedin"]
         })
 
     return sorted(results, key=lambda x: x["score"], reverse=True)
@@ -306,5 +416,5 @@ def generate_analytics(results):
 
     return {
         "scores": scores,
-        "average_score": sum(scores) / len(scores) if scores else 0
+        "average_score": round(sum(scores) / len(scores), 4) if scores else 0
     }

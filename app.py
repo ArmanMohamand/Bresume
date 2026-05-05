@@ -601,10 +601,16 @@ def delete_job(id):
     if get_jwt().get("role") != "admin":
         return jsonify({"error": "Only admin"}), 403
 
-    jobdesc_collection.delete_one({"_id": ObjectId(id)})
+    # 🚨 Validate ObjectId first
+    if not ObjectId.is_valid(id):
+        return jsonify({"error": "Invalid job ID"}), 400
 
-    return jsonify({"message": "Deleted"})
+    result = jobdesc_collection.delete_one({"_id": ObjectId(id)})
 
+    if result.deleted_count == 0:
+        return jsonify({"error": "Job not found"}), 404
+
+    return jsonify({"message": "Deleted successfully"}), 200
 
 # ---------------- RUN ----------------
 if __name__ == "__main__":
