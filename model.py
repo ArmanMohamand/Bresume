@@ -622,47 +622,34 @@ def rank_resumes(resumes, job_desc="", required_skills=None):
 
     required_skills = [s.lower().strip() for s in (required_skills or [])]
 
-    job_desc = clean_text(job_desc)
-
-    texts = [job_desc] + [
-        clean_text(r.get("text", "")) for r in resumes
-    ]
-
-    vectorizer = TfidfVectorizer(stop_words="english")
-    tfidf = vectorizer.fit_transform(texts)
-
-    job_vector = tfidf[0]
-    resume_vectors = tfidf[1:]
-
-    similarities = cosine_similarity(job_vector, resume_vectors)[0]
-
     results = []
 
     for i, resume in enumerate(resumes):
-        text = clean_text(resume.get("text", ""))
 
+        text = (resume.get("text") or "").lower()
+
+        # extract skills directly from resume
         skills_found = extract_skills(text)
 
+        # normalize required skills match
         matched_skills = list(set(skills_found) & set(required_skills))
 
-        # ---------------- SCORES ----------------
-        tfidf_score = float(similarities[i])
-
+        # ---------------- SCORE CORE FIX ----------------
         skill_score = (
             len(matched_skills) / len(required_skills)
             if required_skills else 0
         )
 
-        # boost
-        keyword_boost = 0.2 * len(matched_skills)
+        # fallback if text is empty
+        text_score = 0
+        if text.strip():
+            vectorizer = TfidfVectorizer(stop_words="english")
+            tfidf = vectorizer.fit_transform([job_desc, text])
+            text_score = cosine_similarity(tfidf[0], tfidf[1])[0][0]
 
+        # FINAL SCORE (SKILL-FIRST SYSTEM)
         final_score = round(
-            min(
-                0.5 * tfidf_score +
-                0.4 * skill_score +
-                0.1 * keyword_boost,
-                1
-            ),
+            0.7 * skill_score + 0.3 * text_score,
             3
         )
 
@@ -672,9 +659,6 @@ def rank_resumes(resumes, job_desc="", required_skills=None):
         results.append({
             "resume_id": i + 1,
             "score": final_score,
-
-            "tfidf_score": tfidf_score,
-            "skill_score": skill_score,
 
             "skills": skills_found,
             "matched_skills": matched_skills,
@@ -686,7 +670,6 @@ def rank_resumes(resumes, job_desc="", required_skills=None):
         })
 
     return sorted(results, key=lambda x: x["score"], reverse=True)
-
 
 # ---------------- ANALYTICS ----------------
 def generate_analytics(results):
