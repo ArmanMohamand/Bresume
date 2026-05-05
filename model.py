@@ -420,7 +420,157 @@
 #     }
 
 
+# import re
+
+# # ---------------- CONTACT ----------------
+# def extract_contact(text):
+#     email = re.search(r'[\w\.-]+@[\w\.-]+\.\w+', text)
+#     phone = re.search(r'\+?\d[\d\s-]{8,}\d', text)
+
+#     return {
+#         "email": email.group(0) if email else None,
+#         "phone": phone.group(0) if phone else None
+#     }
+
+
+# # ---------------- NAME ----------------
+# def extract_name(text):
+#     match = re.search(r'Name[:\-]\s*([A-Za-z ]+)', text)
+#     if match:
+#         return match.group(1).strip()
+
+#     match = re.search(r'([A-Z][a-z]+ [A-Z][a-z]+)', text)
+#     return match.group(1).strip() if match else None
+
+
+# # ---------------- SKILLS DB ----------------
+# SKILLS_DB = [
+#     "python", "java", "c++", "javascript",
+#     "react", "node", "flask", "django",
+#     "mongodb", "sql", "docker", "aws"
+# ]
+
+
+# def extract_skills(text):
+#     text = text.lower()
+#     return [s for s in SKILLS_DB if s in text]
+
+
+# # ---------------- LINKS ----------------
+# def extract_links(text):
+#     github = re.search(r'https?://github\.com/[^\s]+', text)
+#     linkedin = re.search(r'https?://(www\.)?linkedin\.com/[^\s]+', text)
+
+#     return {
+#         "github": github.group(0) if github else None,
+#         "linkedin": linkedin.group(0) if linkedin else None
+#     }
+
+
+# # ---------------- NEW SCORING SYSTEM ----------------
+# def calculate_score(resume_skills, required_skills):
+#     if not required_skills:
+#         return 0
+
+#     resume_skills = set([s.lower() for s in resume_skills])
+#     required_skills = set([s.lower() for s in required_skills])
+
+#     matched = resume_skills.intersection(required_skills)
+
+#     return round(len(matched) / len(required_skills), 3)
+
+
+# # ---------------- MAIN RANKING ----------------
+# def rank_resumes(resumes, job_desc="", required_skills=None):
+
+#     required_skills = [s.lower().strip() for s in (required_skills or [])]
+
+#     job_desc = clean_text(job_desc)
+
+#     texts = [job_desc] + [
+#         clean_text(r.get("text", "")) for r in resumes
+#     ]
+
+#     vectorizer = TfidfVectorizer(stop_words="english")
+#     tfidf = vectorizer.fit_transform(texts)
+
+#     job_vector = tfidf[0]
+#     resume_vectors = tfidf[1:]
+
+#     similarities = cosine_similarity(job_vector, resume_vectors)[0]
+
+#     results = []
+
+#     for i, resume in enumerate(resumes):
+#         text = clean_text(resume.get("text", ""))
+
+#         skills_found = extract_skills(text)
+#         matched_skills = list(set(skills_found) & set(required_skills))
+
+#         # ---------------- SCORE FIX ----------------
+#         tfidf_score = float(similarities[i])
+
+#         skill_score = (
+#             len(matched_skills) / len(required_skills)
+#             if required_skills else 0
+#         )
+
+#         # 🔥 BOOST SYSTEM (VERY IMPORTANT FIX)
+#         keyword_boost = 0.2 * len(matched_skills)
+
+#         final_score = (
+#             0.5 * tfidf_score +
+#             0.4 * skill_score +
+#             0.1 * keyword_boost
+#         )
+
+#         final_score = round(min(final_score, 1), 3)
+
+#         contact = extract_contact(text)
+#         links = extract_links(text)
+
+#         results.append({
+#             "resume_id": i + 1,
+#             "score": final_score,
+
+#             "tfidf_score": float(tfidf_score),
+#             "skill_score": float(skill_score),
+
+#             "skills": skills_found,
+#             "matched_skills": matched_skills,
+
+#             "email": contact["email"],
+#             "phone": contact["phone"],
+#             "github": links["github"],
+#             "linkedin": links["linkedin"],
+#         })
+
+#     return sorted(results, key=lambda x: x["score"], reverse=True)
+
+# # ---------------- ANALYTICS ----------------
+# def generate_analytics(results):
+#     scores = [r["score"] for r in results]
+
+#     return {
+#         "scores": scores,
+#         "average_score": round(sum(scores) / len(scores), 3) if scores else 0
+#     }
+
+
 import re
+from sklearn.feature_extraction.text import TfidfVectorizer
+from sklearn.metrics.pairwise import cosine_similarity
+
+# ---------------- CLEAN TEXT ----------------
+def clean_text(text):
+    if not text:
+        return ""
+
+    text = text.lower()
+    text = re.sub(r"[^a-zA-Z0-9+.# ]", " ", text)
+    text = re.sub(r"\s+", " ", text)
+    return text.strip()
+
 
 # ---------------- CONTACT ----------------
 def extract_contact(text):
@@ -443,7 +593,7 @@ def extract_name(text):
     return match.group(1).strip() if match else None
 
 
-# ---------------- SKILLS DB ----------------
+# ---------------- SKILLS ----------------
 SKILLS_DB = [
     "python", "java", "c++", "javascript",
     "react", "node", "flask", "django",
@@ -467,48 +617,72 @@ def extract_links(text):
     }
 
 
-# ---------------- NEW SCORING SYSTEM ----------------
-def calculate_score(resume_skills, required_skills):
-    if not required_skills:
-        return 0
-
-    resume_skills = set([s.lower() for s in resume_skills])
-    required_skills = set([s.lower() for s in required_skills])
-
-    matched = resume_skills.intersection(required_skills)
-
-    return round(len(matched) / len(required_skills), 3)
-
-
-# ---------------- MAIN RANKING ----------------
+# ---------------- RANKING ----------------
 def rank_resumes(resumes, job_desc="", required_skills=None):
-    required_skills = required_skills or []
+
+    required_skills = [s.lower().strip() for s in (required_skills or [])]
+
+    job_desc = clean_text(job_desc)
+
+    texts = [job_desc] + [
+        clean_text(r.get("text", "")) for r in resumes
+    ]
+
+    vectorizer = TfidfVectorizer(stop_words="english")
+    tfidf = vectorizer.fit_transform(texts)
+
+    job_vector = tfidf[0]
+    resume_vectors = tfidf[1:]
+
+    similarities = cosine_similarity(job_vector, resume_vectors)[0]
 
     results = []
 
     for i, resume in enumerate(resumes):
-        text = resume.get("text", "")
+        text = clean_text(resume.get("text", ""))
 
-        skills = extract_skills(text)
+        skills_found = extract_skills(text)
+
+        matched_skills = list(set(skills_found) & set(required_skills))
+
+        # ---------------- SCORES ----------------
+        tfidf_score = float(similarities[i])
+
+        skill_score = (
+            len(matched_skills) / len(required_skills)
+            if required_skills else 0
+        )
+
+        # boost
+        keyword_boost = 0.2 * len(matched_skills)
+
+        final_score = round(
+            min(
+                0.5 * tfidf_score +
+                0.4 * skill_score +
+                0.1 * keyword_boost,
+                1
+            ),
+            3
+        )
+
         contact = extract_contact(text)
         links = extract_links(text)
-        name = extract_name(text)
-
-        score = calculate_score(skills, required_skills)
 
         results.append({
             "resume_id": i + 1,
-            "filename": resume.get("filename"),
-            "uploaded_by": resume.get("uploaded_by"),
+            "score": final_score,
 
-            "score": score,
-            "name": name,
-            "skills": skills,
+            "tfidf_score": tfidf_score,
+            "skill_score": skill_score,
+
+            "skills": skills_found,
+            "matched_skills": matched_skills,
 
             "email": contact["email"],
             "phone": contact["phone"],
             "github": links["github"],
-            "linkedin": links["linkedin"]
+            "linkedin": links["linkedin"],
         })
 
     return sorted(results, key=lambda x: x["score"], reverse=True)
