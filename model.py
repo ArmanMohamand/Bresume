@@ -562,12 +562,11 @@ from sklearn.feature_extraction.text import TfidfVectorizer
 from sklearn.metrics.pairwise import cosine_similarity
 
 # ---------------- CLEAN TEXT ----------------
-def clean_text(text):
+def normalize_text(text):
     if not text:
         return ""
-
     text = text.lower()
-    text = re.sub(r"[^a-zA-Z0-9+.# ]", " ", text)
+    text = re.sub(r"[^a-z0-9+.# ]", " ", text)
     text = re.sub(r"\s+", " ", text)
     return text.strip()
 
@@ -583,29 +582,6 @@ def extract_contact(text):
     }
 
 
-# ---------------- NAME ----------------
-def extract_name(text):
-    match = re.search(r'Name[:\-]\s*([A-Za-z ]+)', text)
-    if match:
-        return match.group(1).strip()
-
-    match = re.search(r'([A-Z][a-z]+ [A-Z][a-z]+)', text)
-    return match.group(1).strip() if match else None
-
-
-# ---------------- SKILLS ----------------
-SKILLS_DB = [
-    "python", "java", "c++", "javascript",
-    "react", "node", "flask", "django",
-    "mongodb", "sql", "docker", "aws"
-]
-
-
-def extract_skills(text):
-    text = text.lower()
-    return [s for s in SKILLS_DB if s in text]
-
-
 # ---------------- LINKS ----------------
 def extract_links(text):
     github = re.search(r'https?://github\.com/[^\s]+', text)
@@ -617,39 +593,61 @@ def extract_links(text):
     }
 
 
-# ---------------- RANKING ----------------
+# ---------------- FIXED SKILL EXTRACTION ----------------
+def extract_skills(text):
+    text = text.lower()
+    found = []
+
+    skill_map = {
+        "python": ["python"],
+        "flask": ["flask"],
+        "mongodb": ["mongodb", "mongo db"],
+        "sql": ["sql"],
+        "node": ["node", "nodejs", "node.js"],
+        "javascript": ["javascript", "js"],
+        "docker": ["docker"],
+        "aws": ["aws"],
+    }
+
+    for skill, variants in skill_map.items():
+        if any(v in text for v in variants):
+            found.append(skill)
+
+    return found
+
+
+# ---------------- RANKING ENGINE ----------------
 def rank_resumes(resumes, job_desc="", required_skills=None):
 
     required_skills = [s.lower().strip() for s in (required_skills or [])]
+    job_desc = normalize_text(job_desc)
 
     results = []
 
     for i, resume in enumerate(resumes):
 
-        text = (resume.get("text") or "").lower()
+        text = normalize_text(resume.get("text", ""))
 
-        # extract skills directly from resume
         skills_found = extract_skills(text)
 
-        # normalize required skills match
         matched_skills = list(set(skills_found) & set(required_skills))
 
-        # ---------------- SCORE CORE FIX ----------------
+        # ---------------- SKILL SCORE ----------------
         skill_score = (
             len(matched_skills) / len(required_skills)
             if required_skills else 0
         )
 
-        # fallback if text is empty
-        text_score = 0
-        if text.strip():
+        # ---------------- TF-IDF SCORE ----------------
+        tfidf_score = 0
+        if len(job_desc.split()) > 2 and len(text.split()) > 5:
             vectorizer = TfidfVectorizer(stop_words="english")
             tfidf = vectorizer.fit_transform([job_desc, text])
-            text_score = cosine_similarity(tfidf[0], tfidf[1])[0][0]
+            tfidf_score = cosine_similarity(tfidf[0], tfidf[1])[0][0]
 
-        # FINAL SCORE (SKILL-FIRST SYSTEM)
+        # ---------------- FINAL SCORE ----------------
         final_score = round(
-            0.7 * skill_score + 0.3 * text_score,
+            0.6 * skill_score + 0.4 * tfidf_score,
             3
         )
 
@@ -663,6 +661,9 @@ def rank_resumes(resumes, job_desc="", required_skills=None):
             "skills": skills_found,
             "matched_skills": matched_skills,
 
+            "skill_score": round(skill_score, 3),
+            "tfidf_score": round(tfidf_score, 3),
+
             "email": contact["email"],
             "phone": contact["phone"],
             "github": links["github"],
@@ -670,6 +671,7 @@ def rank_resumes(resumes, job_desc="", required_skills=None):
         })
 
     return sorted(results, key=lambda x: x["score"], reverse=True)
+
 
 # ---------------- ANALYTICS ----------------
 def generate_analytics(results):
