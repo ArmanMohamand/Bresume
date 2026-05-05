@@ -184,11 +184,9 @@
 
 
 import re
-import spacy
 from sklearn.feature_extraction.text import TfidfVectorizer
 from sklearn.metrics.pairwise import cosine_similarity
 
-nlp = spacy.load("en_core_web_sm")
 
 # ---------------- CONTACT ----------------
 def extract_contact(text):
@@ -203,10 +201,16 @@ def extract_contact(text):
 
 # ---------------- NAME (ML) ----------------
 def extract_name(text):
-    doc = nlp(text)
-    for ent in doc.ents:
-        if ent.label_ == "PERSON":
-            return ent.text
+    # Look for "Name: XYZ" format first
+    match = re.search(r'Name[:\-]\s*([A-Za-z ]+)', text)
+    if match:
+        return match.group(1).strip()
+
+    # fallback: first capitalized full name
+    match = re.search(r'([A-Z][a-z]+ [A-Z][a-z]+)', text)
+    if match:
+        return match.group(1).strip()
+
     return None
 
 
