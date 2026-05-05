@@ -103,7 +103,6 @@ def rank_resumes(resumes, job_desc="", required_skills=None):
 
     for i, resume in enumerate(resumes):
 
-        # ✅ FIX: resume is dictionary
         resume_text = resume.get("text", "")
 
         if not isinstance(resume_text, str):
