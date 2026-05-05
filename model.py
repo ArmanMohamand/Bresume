@@ -310,6 +310,116 @@
 #     }
 
 
+# import re
+
+# # ---------------- CONTACT ----------------
+# def extract_contact(text):
+#     email = re.search(r'[\w\.-]+@[\w\.-]+\.\w+', text)
+#     phone = re.search(r'\+?\d[\d\s-]{8,}\d', text)
+
+#     return {
+#         "email": email.group(0) if email else None,
+#         "phone": phone.group(0) if phone else None
+#     }
+
+
+# # ---------------- NAME ----------------
+# def extract_name(text):
+#     match = re.search(r'Name[:\-]\s*([A-Za-z ]+)', text)
+#     if match:
+#         return match.group(1).strip()
+
+#     match = re.search(r'([A-Z][a-z]+ [A-Z][a-z]+)', text)
+#     return match.group(1).strip() if match else None
+
+
+# # ---------------- SKILLS DATABASE ----------------
+# SKILLS_DB = [
+#     "python", "java", "c++", "javascript",
+#     "react", "node", "flask", "django",
+#     "mongodb", "sql", "docker", "aws"
+# ]
+
+
+# def extract_skills(text):
+#     text = text.lower()
+#     return [s for s in SKILLS_DB if s in text]
+
+
+# # ---------------- LINKS ----------------
+# def extract_links(text):
+#     github_url = re.search(r'https?://github\.com/[^\s]+', text)
+#     linkedin_url = re.search(r'https?://(www\.)?linkedin\.com/[^\s]+', text)
+
+#     github_user = re.search(r'GitHub[:\s]+([A-Za-z0-9_-]+)', text, re.IGNORECASE)
+#     linkedin_user = re.search(r'LinkedIn[:\s]+([A-Za-z0-9\s_-]+)', text, re.IGNORECASE)
+
+#     github = github_url.group(0) if github_url else (
+#         f"https://github.com/{github_user.group(1).strip()}" if github_user else None
+#     )
+
+#     linkedin = linkedin_url.group(0) if linkedin_url else (
+#         f"https://linkedin.com/in/{linkedin_user.group(1).strip().replace(' ', '-')}" if linkedin_user else None
+#     )
+
+#     return {"github": github, "linkedin": linkedin}
+
+
+# # ---------------- MAIN RANKING (SKILL BASED) ----------------
+# def rank_resumes(resumes, job_desc="", required_skills=None):
+
+#     required_skills = [s.lower() for s in (required_skills or [])]
+
+#     results = []
+
+#     for i, resume in enumerate(resumes):
+#         text = resume.get("text", "").lower()
+
+#         resume_skills = extract_skills(text)
+
+#         matched_skills = list(set(required_skills) & set(resume_skills))
+
+#         # ---------------- SCORE LOGIC ----------------
+#         if required_skills:
+#             skill_score = len(matched_skills) / len(required_skills)
+#         else:
+#             skill_score = len(resume_skills) / len(SKILLS_DB)
+
+#         # small bonus for overall skill richness
+#         richness_bonus = len(resume_skills) / len(SKILLS_DB)
+
+#         score = (skill_score * 0.85) + (richness_bonus * 0.15)
+
+#         results.append({
+#             "resume_id": i + 1,
+#             "filename": resume.get("filename"),
+#             "uploaded_by": resume.get("uploaded_by"),
+
+#             "score": round(score, 4),
+
+#             "matched_skills": matched_skills,
+#             "all_skills": resume_skills,
+
+#             "name": extract_name(text),
+#             "email": extract_contact(text)["email"],
+#             "phone": extract_contact(text)["phone"],
+#             "github": extract_links(text)["github"],
+#             "linkedin": extract_links(text)["linkedin"]
+#         })
+
+#     return sorted(results, key=lambda x: x["score"], reverse=True)
+
+
+# # ---------------- ANALYTICS ----------------
+# def generate_analytics(results):
+#     scores = [r["score"] for r in results]
+
+#     return {
+#         "scores": scores,
+#         "average_score": round(sum(scores) / len(scores), 4) if scores else 0
+#     }
+
+
 import re
 
 # ---------------- CONTACT ----------------
@@ -333,7 +443,7 @@ def extract_name(text):
     return match.group(1).strip() if match else None
 
 
-# ---------------- SKILLS DATABASE ----------------
+# ---------------- SKILLS DB ----------------
 SKILLS_DB = [
     "python", "java", "c++", "javascript",
     "react", "node", "flask", "django",
@@ -348,63 +458,57 @@ def extract_skills(text):
 
 # ---------------- LINKS ----------------
 def extract_links(text):
-    github_url = re.search(r'https?://github\.com/[^\s]+', text)
-    linkedin_url = re.search(r'https?://(www\.)?linkedin\.com/[^\s]+', text)
+    github = re.search(r'https?://github\.com/[^\s]+', text)
+    linkedin = re.search(r'https?://(www\.)?linkedin\.com/[^\s]+', text)
 
-    github_user = re.search(r'GitHub[:\s]+([A-Za-z0-9_-]+)', text, re.IGNORECASE)
-    linkedin_user = re.search(r'LinkedIn[:\s]+([A-Za-z0-9\s_-]+)', text, re.IGNORECASE)
-
-    github = github_url.group(0) if github_url else (
-        f"https://github.com/{github_user.group(1).strip()}" if github_user else None
-    )
-
-    linkedin = linkedin_url.group(0) if linkedin_url else (
-        f"https://linkedin.com/in/{linkedin_user.group(1).strip().replace(' ', '-')}" if linkedin_user else None
-    )
-
-    return {"github": github, "linkedin": linkedin}
+    return {
+        "github": github.group(0) if github else None,
+        "linkedin": linkedin.group(0) if linkedin else None
+    }
 
 
-# ---------------- MAIN RANKING (SKILL BASED) ----------------
+# ---------------- NEW SCORING SYSTEM ----------------
+def calculate_score(resume_skills, required_skills):
+    if not required_skills:
+        return 0
+
+    resume_skills = set([s.lower() for s in resume_skills])
+    required_skills = set([s.lower() for s in required_skills])
+
+    matched = resume_skills.intersection(required_skills)
+
+    return round(len(matched) / len(required_skills), 3)
+
+
+# ---------------- MAIN RANKING ----------------
 def rank_resumes(resumes, job_desc="", required_skills=None):
-
-    required_skills = [s.lower() for s in (required_skills or [])]
+    required_skills = required_skills or []
 
     results = []
 
     for i, resume in enumerate(resumes):
-        text = resume.get("text", "").lower()
+        text = resume.get("text", "")
 
-        resume_skills = extract_skills(text)
+        skills = extract_skills(text)
+        contact = extract_contact(text)
+        links = extract_links(text)
+        name = extract_name(text)
 
-        matched_skills = list(set(required_skills) & set(resume_skills))
-
-        # ---------------- SCORE LOGIC ----------------
-        if required_skills:
-            skill_score = len(matched_skills) / len(required_skills)
-        else:
-            skill_score = len(resume_skills) / len(SKILLS_DB)
-
-        # small bonus for overall skill richness
-        richness_bonus = len(resume_skills) / len(SKILLS_DB)
-
-        score = (skill_score * 0.85) + (richness_bonus * 0.15)
+        score = calculate_score(skills, required_skills)
 
         results.append({
             "resume_id": i + 1,
             "filename": resume.get("filename"),
             "uploaded_by": resume.get("uploaded_by"),
 
-            "score": round(score, 4),
+            "score": score,
+            "name": name,
+            "skills": skills,
 
-            "matched_skills": matched_skills,
-            "all_skills": resume_skills,
-
-            "name": extract_name(text),
-            "email": extract_contact(text)["email"],
-            "phone": extract_contact(text)["phone"],
-            "github": extract_links(text)["github"],
-            "linkedin": extract_links(text)["linkedin"]
+            "email": contact["email"],
+            "phone": contact["phone"],
+            "github": links["github"],
+            "linkedin": links["linkedin"]
         })
 
     return sorted(results, key=lambda x: x["score"], reverse=True)
@@ -416,5 +520,5 @@ def generate_analytics(results):
 
     return {
         "scores": scores,
-        "average_score": round(sum(scores) / len(scores), 4) if scores else 0
+        "average_score": round(sum(scores) / len(scores), 3) if scores else 0
     }
