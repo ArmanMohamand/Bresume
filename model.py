@@ -1373,28 +1373,18 @@ def extract_contact(text):
 
 # ---------------- NAME ----------------
 def extract_name(text):
-    lines = text.strip().split("\n")
+    lines = text.split("\n")
 
-    for line in lines[:5]:
+    for line in lines[:10]:
         line = line.strip()
 
-        if not line:
-            continue
-
-        if "@" in line or any(char.isdigit() for char in line):
-            continue
-
-        line = " ".join(line.split())
-
-        if re.match(r'^[A-Z][a-z]+( [A-Z][a-z]+){1,2}$', line):
+        if (
+            2 <= len(line.split()) <= 4 and
+            line.replace(" ", "").isalpha()  # only letters
+        ):
             return line
 
-    match = re.search(r'([A-Z][a-z]+ [A-Z][a-z]+)', text)
-    if match:
-        return match.group(1)
-
     return None
-
 
 # ---------------- SKILLS ----------------
 SKILLS_DB = [
