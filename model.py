@@ -851,6 +851,8 @@
 #         "scores": scores,
 #         "average_score": round(sum(scores) / len(scores), 3) if scores else 0
 #     }
+
+
 import re
 from sklearn.feature_extraction.text import TfidfVectorizer
 from sklearn.metrics.pairwise import cosine_similarity
@@ -960,7 +962,7 @@ def rank_resumes(resumes, job_desc="", required_skills=None):
         skills_found = extract_skills(text)
 
         # ✅ MATCH FIX (NOW WORKS)
-        matched_skills = list(set(skills_found) & set(required_skills))
+
 
         # ---------------- SKILL SCORE ----------------
         if required_skills:
