@@ -1024,7 +1024,141 @@
 #         "average_score": round(sum(scores) / len(scores), 3) if scores else 0
 #     }
 
+# import re
+# # ---------------- NORMALIZE TEXT ----------------
+# def normalize_text(text):
+#     if not text:
+#         return ""
+
+#     text = text.lower()
+
+#     replacements = {
+#         "node.js": "nodejs",
+#         "node js": "nodejs",
+#         "express.js": "expressjs",
+#         "next.js": "nextjs",
+#         "react.js": "react",
+#         "mongo db": "mongodb",
+#     }
+
+#     for k, v in replacements.items():
+#         text = text.replace(k, v)
+
+#     text = re.sub(r"[^a-z0-9+# ]", " ", text)
+#     text = re.sub(r"\s+", " ", text)
+
+#     return text.strip()
+
+
+# # ---------------- CONTACT ----------------
+# def extract_contact(text):
+#     email = re.search(r'[\w\.-]+@[\w\.-]+\.\w+', text)
+#     phone = re.search(r'\b\d{10}\b', text)
+
+#     return {
+#         "email": email.group(0) if email else None,
+#         "phone": phone.group(0) if phone else None
+#     }
+
+
+# # ---------------- LINKS ----------------
+# def extract_links(text):
+#     github = re.search(r'https?://github\.com/[^\s]+', text)
+#     linkedin = re.search(r'https?://(www\.)?linkedin\.com/[^\s]+', text)
+
+#     return {
+#         "github": github.group(0) if github else None,
+#         "linkedin": linkedin.group(0) if linkedin else None
+#     }
+
+
+# # ---------------- SKILLS (ADVANCED) ----------------
+# def extract_skills(text):
+#     text = normalize_text(text)
+
+#     # ✅ ONLY REAL TECH SKILLS (controlled list)
+#     skill_keywords = [
+#         # Languages
+#         "python", "java", "c++", "c", "javascript", "typescript",
+
+#         # Frontend
+#         "react", "nextjs", "vue", "angular", "tailwind", "bootstrap", "html", "css",
+
+#         # Backend
+#         "nodejs", "expressjs", "flask", "django",
+
+#         # Database
+#         "mongodb", "sql", "mysql", "postgresql",
+
+#         # Tools / DevOps
+#         "docker", "aws", "git",
+
+#         # Concepts
+#         "dsa", "api", "rest"
+#     ]
+
+#     found = set()
+
+#     # ✅ STRICT MATCH (prevents garbage words)
+#     for skill in skill_keywords:
+#         if re.search(rf"\b{skill}\b", text):
+#             found.add(skill)
+
+#     # ✅ SMART ADDITION
+#     if "data structure" in text or "algorithm" in text:
+#         found.add("dsa")
+
+#     return list(found)
+
+
+# # ---------------- RANKING (FINAL FIXED) ----------------
+# def rank_resumes(resumes, job_desc="", required_skills=None):
+
+#     results = []
+
+#     for i, resume in enumerate(resumes):
+
+#         raw_text = resume.get("text", "")
+#         text = normalize_text(raw_text)
+
+#         skills_found = extract_skills(text)
+
+#         # ✅ FINAL SCORE = NUMBER OF SKILLS
+#         final_score = len(skills_found)
+
+#         contact = extract_contact(raw_text)
+#         links = extract_links(raw_text)
+
+#         # DEBUG (optional)
+#         print("\n--- DEBUG ---")
+#         print("SKILLS:", skills_found)
+#         print("SCORE:", final_score)
+
+#         results.append({
+#             "resume_id": i + 1,
+#             "score": final_score,
+
+#             "skills": skills_found,
+
+#             "email": contact["email"],
+#             "phone": contact["phone"],
+#             "github": links["github"],
+#             "linkedin": links["linkedin"],
+#         })
+
+#     return sorted(results, key=lambda x: x["score"], reverse=True)
+
+
+# # ---------------- ANALYTICS ----------------
+# def generate_analytics(results):
+#     scores = [r["score"] for r in results]
+
+#     return {
+#         "scores": scores,
+#         "average_score": round(sum(scores) / len(scores), 3) if scores else 0
+#     }
 import re
+
 # ---------------- NORMALIZE TEXT ----------------
 def normalize_text(text):
     if not text:
@@ -1061,10 +1195,10 @@ def extract_contact(text):
     }
 
 
-# ---------------- LINKS ----------------
+# ---------------- LINKS (FIXED) ----------------
 def extract_links(text):
-    github = re.search(r'https?://github\.com/[^\s]+', text)
-    linkedin = re.search(r'https?://(www\.)?linkedin\.com/[^\s]+', text)
+    github = re.search(r'(https?://)?(www\.)?github\.com/[^\s]+', text)
+    linkedin = re.search(r'(https?://)?(www\.)?linkedin\.com/[^\s]+', text)
 
     return {
         "github": github.group(0) if github else None,
@@ -1072,11 +1206,26 @@ def extract_links(text):
     }
 
 
-# ---------------- SKILLS (ADVANCED) ----------------
+# ---------------- NAME EXTRACTION ----------------
+def extract_name(text):
+    lines = text.split("\n")
+
+    for line in lines[:15]:
+        line = line.strip()
+
+        if (
+            2 <= len(line.split()) <= 4 and
+            not re.search(r'@|http|\d|btech|education|college|university', line.lower())
+        ):
+            return line
+
+    return None
+
+
+# ---------------- SKILLS (FINAL CLEAN) ----------------
 def extract_skills(text):
     text = normalize_text(text)
 
-    # ✅ ONLY REAL TECH SKILLS (controlled list)
     skill_keywords = [
         # Languages
         "python", "java", "c++", "c", "javascript", "typescript",
@@ -1090,7 +1239,7 @@ def extract_skills(text):
         # Database
         "mongodb", "sql", "mysql", "postgresql",
 
-        # Tools / DevOps
+        # Tools
         "docker", "aws", "git",
 
         # Concepts
@@ -1099,19 +1248,36 @@ def extract_skills(text):
 
     found = set()
 
-    # ✅ STRICT MATCH (prevents garbage words)
     for skill in skill_keywords:
-        if re.search(rf"\b{skill}\b", text):
-            found.add(skill)
+        if skill == "c":
+            if re.search(r"\bc\b", text):
+                found.add(skill)
+        else:
+            if re.search(rf"\b{skill}\b", text):
+                found.add(skill)
 
-    # ✅ SMART ADDITION
+    # smart detection
     if "data structure" in text or "algorithm" in text:
         found.add("dsa")
 
     return list(found)
 
 
-# ---------------- RANKING (FINAL FIXED) ----------------
+# ---------------- METADATA ----------------
+def extract_metadata(text):
+    contact = extract_contact(text)
+    links = extract_links(text)
+
+    return {
+        "name": extract_name(text),
+        "email": contact["email"],
+        "phone": contact["phone"],
+        "github": links["github"],
+        "linkedin": links["linkedin"],
+    }
+
+
+# ---------------- RANKING ----------------
 def rank_resumes(resumes, job_desc="", required_skills=None):
 
     results = []
@@ -1119,18 +1285,16 @@ def rank_resumes(resumes, job_desc="", required_skills=None):
     for i, resume in enumerate(resumes):
 
         raw_text = resume.get("text", "")
-        text = normalize_text(raw_text)
 
-        skills_found = extract_skills(text)
+        skills_found = extract_skills(raw_text)
+        metadata = extract_metadata(raw_text)
 
-        # ✅ FINAL SCORE = NUMBER OF SKILLS
+        # ✅ SCORE = NUMBER OF SKILLS
         final_score = len(skills_found)
 
-        contact = extract_contact(raw_text)
-        links = extract_links(raw_text)
-
-        # DEBUG (optional)
+        # DEBUG
         print("\n--- DEBUG ---")
+        print("NAME:", metadata["name"])
         print("SKILLS:", skills_found)
         print("SCORE:", final_score)
 
@@ -1140,10 +1304,10 @@ def rank_resumes(resumes, job_desc="", required_skills=None):
 
             "skills": skills_found,
 
-            "email": contact["email"],
-            "phone": contact["phone"],
-            "github": links["github"],
-            "linkedin": links["linkedin"],
+            "email": metadata["email"],
+            "phone": metadata["phone"],
+
+            "metadata": metadata
         })
 
     return sorted(results, key=lambda x: x["score"], reverse=True)
