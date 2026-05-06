@@ -632,6 +632,7 @@ from dotenv import load_dotenv
 from bson import ObjectId
 from datetime import datetime
 import os
+import fitz  # PyMuPDF
 
 from db import users_collection, resumes_collection, jobdesc_collection
 from model import rank_resumes, generate_analytics
@@ -701,14 +702,36 @@ def login():
 
 
 # ---------------- UPLOAD RESUME ----------------
+
 @app.route("/upload", methods=["POST"])
 @jwt_required()
 def upload():
-    data = request.get_json()
+    # Try JSON first (frontend sends parsed text)
+    data = request.get_json(silent=True)
+
+    text = None
+    filename = None
+
+    if data and data.get("text"):
+        text = data["text"]
+        filename = data.get("filename")
+    else:
+        # Fallback: check if file was uploaded
+        file = request.files.get("file")
+        if file:
+            filename = file.filename
+            if filename.endswith(".pdf"):
+                doc = fitz.open(stream=file.read(), filetype="pdf")
+                text = " ".join([page.get_text() for page in doc])
+            else:
+                text = file.read().decode("utf-8", errors="ignore")
+
+    if not text or text.strip() == "":
+        return jsonify({"error": "Could not extract text from resume"}), 400
 
     resumes_collection.insert_one({
-        "filename": data.get("filename"),
-        "text": data.get("text", ""),
+        "filename": filename,
+        "text": text,
         "uploaded_by": get_jwt_identity()
     })
 
