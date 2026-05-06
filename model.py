@@ -1023,8 +1023,8 @@
 #         "scores": scores,
 #         "average_score": round(sum(scores) / len(scores), 3) if scores else 0
 #     }
-import re
 
+import re
 # ---------------- NORMALIZE TEXT ----------------
 def normalize_text(text):
     if not text:
@@ -1076,47 +1076,37 @@ def extract_links(text):
 def extract_skills(text):
     text = normalize_text(text)
 
-    base_skills = [
+    # ✅ ONLY REAL TECH SKILLS (controlled list)
+    skill_keywords = [
         # Languages
         "python", "java", "c++", "c", "javascript", "typescript",
+
+        # Frontend
+        "react", "nextjs", "vue", "angular", "tailwind", "bootstrap", "html", "css",
 
         # Backend
         "nodejs", "expressjs", "flask", "django",
 
-        # Frontend
-        "react", "nextjs", "vue", "angular", "tailwind", "bootstrap",
+        # Database
+        "mongodb", "sql", "mysql", "postgresql",
 
-        # Databases
-        "mongodb", "sql", "mysql", "postgresql", "redis",
-
-        # DevOps / Tools
-        "docker", "kubernetes", "aws", "azure", "gcp", "git",
+        # Tools / DevOps
+        "docker", "aws", "git",
 
         # Concepts
-        "dsa", "api", "rest", "microservices"
+        "dsa", "api", "rest"
     ]
 
     found = set()
 
-    # Base skill match
-    for skill in base_skills:
-        if skill in text:
+    # ✅ STRICT MATCH (prevents garbage words)
+    for skill in skill_keywords:
+        if re.search(rf"\b{skill}\b", text):
             found.add(skill)
 
-    # Smart DSA detection
+    # ✅ SMART ADDITION
     if "data structure" in text or "algorithm" in text:
         found.add("dsa")
-
-    # Dynamic skill detection (Skills section)
-    skill_section = re.search(r"skills[:\- ]+(.*)", text)
-
-    if skill_section:
-        extra_skills = skill_section.group(1).split()
-
-        for s in extra_skills:
-            s = s.strip().lower()
-            if 2 < len(s) < 20:
-                found.add(s)
 
     return list(found)
 
