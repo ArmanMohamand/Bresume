@@ -216,12 +216,12 @@
 # def extract_name(text):
 #     lines = text.split("\n")
 
-#     for line in lines[:10]:
+#     for line in lines[:20]:   
 #         line = line.strip()
 
 #         if (
 #             2 <= len(line.split()) <= 4 and
-#             line.replace(" ", "").isalpha()  # only letters
+#             not re.search(r'@|http|\d|btech|education|college|university|project', line.lower())
 #         ):
 #             return line
 
@@ -289,42 +289,28 @@
 
 # # ---------------- PROJECTS ----------------
 # def extract_projects(text):
+#     projects = []
+#     links = []
+
 #     lines = text.split("\n")
 
-#     projects = []
-#     in_project_section = False
-
 #     for line in lines:
-#         clean = line.strip()
+#         l = line.lower()
 
-#         # detect project section
-#         if re.search(r'projects?', clean, re.IGNORECASE):
-#             in_project_section = True
-#             continue
+#         # better detection
+#         if any(word in l for word in ["project", "developed", "built", "application", "system"]):
+#             if 20 < len(line) < 120:
+#                 projects.append(line.strip())
 
-#         # stop at next section
-#         if in_project_section and re.match(
-#             r'^(education|experience|skills|certifications)',
-#             clean,
-#             re.IGNORECASE
-#         ):
-#             break
+#         # extract links
+#         found_links = re.findall(r'https?://[^\s]+', line)
+#         for link in found_links:
+#             links.append(link)
 
-#         if in_project_section:
-#             url_match = re.search(r'https?://[^\s]+', clean)
-
-#             if url_match:
-#                 url = url_match.group(0)
-#                 name = clean.replace(url, "").strip()
-#                 name = re.sub(r'[\-\|•]+', '', name).strip()
-
-#                 projects.append({
-#                     "name": name,
-#                     "link": url
-#                 })
-
-#     return projects
-
+#     return {
+#         "projects": list(set(projects))[:5],
+#         "project_links": list(set(links))[:5]
+#     }
 # def rank_resumes(resumes, job_desc="", required_skills=None):
 
 #     results = []
@@ -415,6 +401,7 @@
 #         "scores": scores,
 #         "average_score": sum(scores) / len(scores) if scores else 0
 #     }
+
 import re
 
 # ---------------- CONTACT ----------------
@@ -430,12 +417,14 @@ def extract_contact(text):
 
 # ---------------- NAME ----------------
 def extract_name(text):
-    # safer: first meaningful line (not section headers)
     lines = text.split("\n")
 
-    skip_words = ["resume", "skills", "education", "projects", "experience", "certifications"]
+    skip_words = [
+        "resume", "skills", "education", "projects",
+        "experience", "certifications", "technical", "summary"
+    ]
 
-    for line in lines[:10]:
+    for line in lines[:15]:
         line = line.strip()
 
         if not line:
@@ -461,16 +450,13 @@ SKILLS_DB = [
 def extract_skills(text):
     text = text.lower()
 
-    normalized = text.replace("node.js", "nodejs") \
-                     .replace("next.js", "nextjs") \
-                     .replace("express.js", "expressjs")
+    normalized = (
+        text.replace("node.js", "nodejs")
+            .replace("next.js", "nextjs")
+            .replace("express.js", "expressjs")
+    )
 
-    skills = []
-    for s in SKILLS_DB:
-        if s.replace(".", "") in normalized:
-            skills.append(s)
-
-    return skills
+    return [s for s in SKILLS_DB if s.replace(".", "") in normalized]
 
 
 # ---------------- LINKS ----------------
@@ -497,39 +483,31 @@ def extract_links(text):
 
 # ---------------- PROJECTS ----------------
 def extract_projects(text):
+    projects = []
+    links = []
+
     lines = text.split("\n")
 
-    projects = []
-    in_project_section = False
-
     for line in lines:
-        clean = line.strip()
+        l = line.lower()
 
-        if re.search(r'projects?', clean, re.IGNORECASE):
-            in_project_section = True
-            continue
+        # detect project-like lines
+        if any(word in l for word in ["project", "built", "developed", "system", "application"]):
+            clean = line.strip()
+            if 20 < len(clean) < 200:
+                projects.append(clean)
 
-        if in_project_section and re.match(
-            r'^(education|experience|skills|certifications)',
-            clean,
-            re.IGNORECASE
-        ):
-            break
+        # extract links
+        found_links = re.findall(r'https?://[^\s]+', line)
+        links.extend(found_links)
 
-        if in_project_section:
-            url_match = re.search(r'https?://[^\s]+', clean)
-
-            if url_match:
-                url = url_match.group(0)
-                name = clean.replace(url, "").strip()
-                name = re.sub(r'[\-\|•]+', '', name).strip()
-
-                projects.append({"name": name, "link": url})
-
-    return projects
+    return {
+        "projects": list(set(projects))[:5],
+        "project_links": list(set(links))[:5]
+    }
 
 
-# ---------------- RANKING (FINAL FIXED) ----------------
+# ---------------- RANKING (FINAL RULE-BASED) ----------------
 def rank_resumes(resumes, job_desc="", required_skills=None):
 
     results = []
@@ -552,15 +530,15 @@ def rank_resumes(resumes, job_desc="", required_skills=None):
         # 1. skill count
         score += len(skills)
 
-        # 2. required skills match
+        # 2. required skills match (higher weight)
         if req_skills:
             matched = [s for s in skills if s in req_skills]
             score += len(matched) * 2
 
-        # 3. projects bonus
-        score += len(projects)
+        # 3. project bonus
+        score += len(projects["projects"])
 
-        # 4. GitHub + LinkedIn bonus
+        # 4. GitHub / LinkedIn bonus
         if links["github"]:
             score += 1
         if links["linkedin"]:
@@ -572,13 +550,15 @@ def rank_resumes(resumes, job_desc="", required_skills=None):
             "score": score,
 
             "skills": skills,
-            "projects": projects,
 
             "email": contact["email"],
             "phone": contact["phone"],
 
             "github": links["github"],
-            "linkedin": links["linkedin"]
+            "linkedin": links["linkedin"],
+
+            "projects": projects["projects"],
+            "project_links": projects["project_links"]
         })
 
     return sorted(results, key=lambda x: x["score"], reverse=True)
