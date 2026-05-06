@@ -683,10 +683,177 @@
 #     }
 
 
+# import re
+# from sklearn.feature_extraction.text import TfidfVectorizer
+# from sklearn.metrics.pairwise import cosine_similarity
+
+
+# # ---------------- NORMALIZE TEXT ----------------
+# def normalize_text(text):
+#     if not text:
+#         return ""
+
+#     text = text.lower()
+
+#     # normalize common tech variations
+#     replacements = {
+#         "node.js": "nodejs",
+#         "node js": "nodejs",
+#         "express.js": "expressjs",
+#         "next.js": "nextjs",
+#         "react.js": "react",
+#         "mongo db": "mongodb",
+#     }
+
+#     for k, v in replacements.items():
+#         text = text.replace(k, v)
+
+#     # clean text
+#     text = re.sub(r"[^a-z0-9+# ]", " ", text)
+#     text = re.sub(r"\s+", " ", text)
+
+#     return text.strip()
+
+
+# # ---------------- CONTACT EXTRACTION ----------------
+# def extract_contact(text):
+#     email = re.search(r'[\w\.-]+@[\w\.-]+\.\w+', text)
+
+#     # better phone detection (India-friendly)
+#     phone = re.search(r'\b\d{10}\b', text)
+
+#     return {
+#         "email": email.group(0) if email else None,
+#         "phone": phone.group(0) if phone else None
+#     }
+
+
+# # ---------------- LINKS ----------------
+# def extract_links(text):
+#     github = re.search(r'https?://github\.com/[^\s]+', text)
+#     linkedin = re.search(r'https?://(www\.)?linkedin\.com/[^\s]+', text)
+
+#     return {
+#         "github": github.group(0) if github else None,
+#         "linkedin": linkedin.group(0) if linkedin else None
+#     }
+
+
+# # ---------------- SKILL EXTRACTION (UPGRADED) ----------------
+# def extract_skills(text):
+#     text = normalize_text(text)
+#     found = set()
+
+#     skill_keywords = [
+#         "python", "java", "c++", "c",
+#         "javascript", "js",
+#         "nodejs", "expressjs",
+#         "react", "nextjs",
+#         "mongodb", "sql",
+#         "flask", "docker", "aws"
+#     ]
+
+#     for skill in skill_keywords:
+#         if skill in text:
+#             # normalize names
+#             if skill == "js":
+#                 found.add("javascript")
+#             elif skill == "nodejs":
+#                 found.add("node")
+#             elif skill == "expressjs":
+#                 found.add("express")
+#             elif skill == "nextjs":
+#                 found.add("next")
+#             else:
+#                 found.add(skill)
+
+#     return list(found)
+
+
+# # ---------------- RANKING ENGINE ----------------
+# def rank_resumes(resumes, job_desc="", required_skills=None):
+
+#     required_skills = [s.lower().strip() for s in (required_skills or [])]
+#     job_desc = normalize_text(job_desc)
+
+#     results = []
+
+#     for i, resume in enumerate(resumes):
+
+#         raw_text = resume.get("text", "")
+#         text = normalize_text(raw_text)
+
+#         skills_found = extract_skills(text)
+#         matched_skills = list(set(skills_found) & set(required_skills))
+
+#         # ---------------- SKILL SCORE ----------------
+#         if required_skills:
+#             skill_score = len(matched_skills) / len(required_skills)
+#         else:
+#             # fallback if no required skills
+#             skill_score = len(skills_found) / 10
+
+#         # ---------------- TF-IDF SCORE ----------------
+#         tfidf_score = 0
+#         if len(job_desc.split()) > 3 and len(text.split()) > 10:
+#             try:
+#                 vectorizer = TfidfVectorizer(stop_words="english")
+#                 tfidf = vectorizer.fit_transform([job_desc, text])
+#                 tfidf_score = cosine_similarity(tfidf[0], tfidf[1])[0][0]
+#             except:
+#                 tfidf_score = 0
+
+#         # ---------------- FINAL SCORE ----------------
+#         final_score = round(
+#             0.6 * skill_score + 0.4 * tfidf_score,
+#             3
+#         )
+
+#         # fallback fix (prevents 0.000 issue)
+#         if final_score == 0 and skills_found:
+#             final_score = round(skill_score, 3)
+
+#         contact = extract_contact(raw_text)
+#         links = extract_links(raw_text)
+
+#         # ---------------- DEBUG LOG ----------------
+#         print("\n--- DEBUG RESUME ---")
+#         print("TEXT SAMPLE:", text[:200])
+#         print("SKILLS FOUND:", skills_found)
+#         print("MATCHED:", matched_skills)
+#         print("JOB DESC:", job_desc)
+#         print("FINAL SCORE:", final_score)
+
+#         results.append({
+#             "resume_id": i + 1,
+#             "score": final_score,
+
+#             "skills": skills_found,
+#             "matched_skills": matched_skills,
+
+#             "skill_score": round(skill_score, 3),
+#             "tfidf_score": round(tfidf_score, 3),
+
+#             "email": contact["email"],
+#             "phone": contact["phone"],
+#             "github": links["github"],
+#             "linkedin": links["linkedin"],
+#         })
+
+#     return sorted(results, key=lambda x: x["score"], reverse=True)
+
+
+# # ---------------- ANALYTICS ----------------
+# def generate_analytics(results):
+#     scores = [r["score"] for r in results]
+
+#     return {
+#         "scores": scores,
+#         "average_score": round(sum(scores) / len(scores), 3) if scores else 0
+#     }
 import re
 from sklearn.feature_extraction.text import TfidfVectorizer
 from sklearn.metrics.pairwise import cosine_similarity
-
 
 # ---------------- NORMALIZE TEXT ----------------
 def normalize_text(text):
@@ -695,7 +862,6 @@ def normalize_text(text):
 
     text = text.lower()
 
-    # normalize common tech variations
     replacements = {
         "node.js": "nodejs",
         "node js": "nodejs",
@@ -708,18 +874,33 @@ def normalize_text(text):
     for k, v in replacements.items():
         text = text.replace(k, v)
 
-    # clean text
     text = re.sub(r"[^a-z0-9+# ]", " ", text)
     text = re.sub(r"\s+", " ", text)
 
     return text.strip()
 
 
-# ---------------- CONTACT EXTRACTION ----------------
+# ---------------- NORMALIZE SKILL ----------------
+def normalize_skill(skill):
+    skill = skill.lower().strip()
+
+    mapping = {
+        "node": "nodejs",
+        "node.js": "nodejs",
+        "express": "expressjs",
+        "express.js": "expressjs",
+        "next": "nextjs",
+        "next.js": "nextjs",
+        "react.js": "react",
+        "mongo db": "mongodb",
+    }
+
+    return mapping.get(skill, skill)
+
+
+# ---------------- CONTACT ----------------
 def extract_contact(text):
     email = re.search(r'[\w\.-]+@[\w\.-]+\.\w+', text)
-
-    # better phone detection (India-friendly)
     phone = re.search(r'\b\d{10}\b', text)
 
     return {
@@ -739,41 +920,34 @@ def extract_links(text):
     }
 
 
-# ---------------- SKILL EXTRACTION (UPGRADED) ----------------
+# ---------------- SKILLS ----------------
 def extract_skills(text):
     text = normalize_text(text)
-    found = set()
 
     skill_keywords = [
         "python", "java", "c++", "c",
-        "javascript", "js",
+        "javascript",
         "nodejs", "expressjs",
         "react", "nextjs",
         "mongodb", "sql",
         "flask", "docker", "aws"
     ]
 
+    found = set()
+
     for skill in skill_keywords:
         if skill in text:
-            # normalize names
-            if skill == "js":
-                found.add("javascript")
-            elif skill == "nodejs":
-                found.add("node")
-            elif skill == "expressjs":
-                found.add("express")
-            elif skill == "nextjs":
-                found.add("next")
-            else:
-                found.add(skill)
+            found.add(skill)
 
     return list(found)
 
 
-# ---------------- RANKING ENGINE ----------------
+# ---------------- RANKING ----------------
 def rank_resumes(resumes, job_desc="", required_skills=None):
 
-    required_skills = [s.lower().strip() for s in (required_skills or [])]
+    # ✅ normalize required skills HERE (correct place)
+    required_skills = [normalize_skill(s) for s in (required_skills or [])]
+
     job_desc = normalize_text(job_desc)
 
     results = []
@@ -784,16 +958,17 @@ def rank_resumes(resumes, job_desc="", required_skills=None):
         text = normalize_text(raw_text)
 
         skills_found = extract_skills(text)
+
+        # ✅ MATCH FIX (NOW WORKS)
         matched_skills = list(set(skills_found) & set(required_skills))
 
         # ---------------- SKILL SCORE ----------------
         if required_skills:
             skill_score = len(matched_skills) / len(required_skills)
         else:
-            # fallback if no required skills
             skill_score = len(skills_found) / 10
 
-        # ---------------- TF-IDF SCORE ----------------
+        # ---------------- TF-IDF ----------------
         tfidf_score = 0
         if len(job_desc.split()) > 3 and len(text.split()) > 10:
             try:
@@ -803,26 +978,21 @@ def rank_resumes(resumes, job_desc="", required_skills=None):
             except:
                 tfidf_score = 0
 
-        # ---------------- FINAL SCORE ----------------
-        final_score = round(
-            0.6 * skill_score + 0.4 * tfidf_score,
-            3
-        )
+        # ---------------- FINAL ----------------
+        final_score = round(0.6 * skill_score + 0.4 * tfidf_score, 3)
 
-        # fallback fix (prevents 0.000 issue)
         if final_score == 0 and skills_found:
             final_score = round(skill_score, 3)
 
         contact = extract_contact(raw_text)
         links = extract_links(raw_text)
 
-        # ---------------- DEBUG LOG ----------------
-        print("\n--- DEBUG RESUME ---")
-        print("TEXT SAMPLE:", text[:200])
-        print("SKILLS FOUND:", skills_found)
+        # ✅ DEBUG (KEEP THIS)
+        print("\n--- DEBUG ---")
+        print("REQUIRED:", required_skills)
+        print("FOUND:", skills_found)
         print("MATCHED:", matched_skills)
-        print("JOB DESC:", job_desc)
-        print("FINAL SCORE:", final_score)
+        print("SCORE:", final_score)
 
         results.append({
             "resume_id": i + 1,
