@@ -1353,50 +1353,199 @@ def extract_name(text):
 
 #     return sorted(results, key=lambda x: x["score"], reverse=True)
 
+
+
+import re
+from sklearn.feature_extraction.text import TfidfVectorizer
+from sklearn.metrics.pairwise import cosine_similarity
+
+
+# ---------------- CONTACT ----------------
+def extract_contact(text):
+    email = re.search(r'[\w\.-]+@[\w\.-]+\.\w+', text)
+    phone = re.search(r'\+?\d[\d\s-]{8,}\d', text)
+
+    return {
+        "email": email.group(0) if email else None,
+        "phone": phone.group(0) if phone else None
+    }
+
+
+# ---------------- NAME ----------------
+def extract_name(text):
+    lines = text.strip().split("\n")
+
+    for line in lines[:5]:
+        line = line.strip()
+
+        if not line:
+            continue
+
+        if "@" in line or any(char.isdigit() for char in line):
+            continue
+
+        line = " ".join(line.split())
+
+        if re.match(r'^[A-Z][a-z]+( [A-Z][a-z]+){1,2}$', line):
+            return line
+
+    match = re.search(r'([A-Z][a-z]+ [A-Z][a-z]+)', text)
+    if match:
+        return match.group(1)
+
+    return None
+
+
+# ---------------- SKILLS ----------------
+SKILLS_DB = [
+    "python", "java", "c++", "c", "javascript",
+    "react", "next.js", "node.js", "express.js",
+    "flask", "django", "mongodb", "sql",
+    "docker", "aws", "html", "css", "tailwind"
+]
+
+def extract_skills(text):
+    text = text.lower()
+
+    normalized = text.replace("node.js", "nodejs") \
+                     .replace("next.js", "nextjs") \
+                     .replace("express.js", "expressjs")
+
+    skills = []
+    for s in SKILLS_DB:
+        if s.replace(".", "") in normalized:
+            skills.append(s)
+
+    return skills
+
+
+# ---------------- LINKS ----------------
+def extract_links(text):
+    text = text.replace("\n", " ")
+
+    github = None
+    linkedin = None
+
+    # direct URLs
+    github_url = re.search(r'https?://github\.com/[^\s]+', text, re.IGNORECASE)
+    linkedin_url = re.search(r'https?://(www\.)?linkedin\.com/[^\s]+', text, re.IGNORECASE)
+
+    if github_url:
+        github = github_url.group(0)
+
+    if linkedin_url:
+        linkedin = linkedin_url.group(0)
+
+    # username-based fallback
+    if not github:
+        g_match = re.search(r'github\s*[:\-]?\s*([A-Za-z0-9_-]{3,})', text, re.IGNORECASE)
+        if g_match:
+            github = f"https://github.com/{g_match.group(1)}"
+
+    if not linkedin:
+        l_match = re.search(r'linkedin\s*[:\-]?\s*([A-Za-z ]{3,})', text, re.IGNORECASE)
+        if l_match:
+            name = l_match.group(1)
+            name = re.split(r'github|email|phone', name, flags=re.IGNORECASE)[0]
+            name = " ".join(name.strip().split())
+            linkedin = f"https://linkedin.com/in/{name.replace(' ', '-')}"
+
+    return {
+        "github": github,
+        "linkedin": linkedin
+    }
+
+
+# ---------------- PROJECTS ----------------
+def extract_projects(text):
+    lines = text.split("\n")
+
+    projects = []
+    in_project_section = False
+
+    for line in lines:
+        clean = line.strip()
+
+        # detect project section
+        if re.search(r'projects?', clean, re.IGNORECASE):
+            in_project_section = True
+            continue
+
+        # stop at next section
+        if in_project_section and re.match(
+            r'^(education|experience|skills|certifications)',
+            clean,
+            re.IGNORECASE
+        ):
+            break
+
+        if in_project_section:
+            url_match = re.search(r'https?://[^\s]+', clean)
+
+            if url_match:
+                url = url_match.group(0)
+                name = clean.replace(url, "").strip()
+                name = re.sub(r'[\-\|•]+', '', name).strip()
+
+                projects.append({
+                    "name": name,
+                    "link": url
+                })
+
+    return projects
+
+
+# ---------------- RANKING ----------------
 def rank_resumes(resumes, job_desc="", required_skills=None):
+
+    texts = [job_desc] + [r.get("text", "") for r in resumes]
+
+    vectorizer = TfidfVectorizer(stop_words="english")
+    tfidf = vectorizer.fit_transform(texts)
+
+    job_vector = tfidf[0]
+    resume_vectors = tfidf[1:]
+
+    similarities = cosine_similarity(job_vector, resume_vectors)[0]
 
     results = []
 
     for i, resume in enumerate(resumes):
+        text = resume.get("text", "")
 
-        raw_text = resume.get("text", "")
-        text = normalize_text(raw_text)
+        name = extract_name(text)
+        contact = extract_contact(text)
+        skills = extract_skills(text)
+        links = extract_links(text)
+        projects = extract_projects(text)
 
-        skills_found = extract_skills(text)
-
-        # ✅ SCORE = number of skills
-        final_score = len(skills_found)
-
-        contact = extract_contact(raw_text)
-        links = extract_links(raw_text)
-        name = extract_name(raw_text)
-        projects_data = extract_projects(raw_text)
+        score = float(similarities[i])
 
         results.append({
             "resume_id": i + 1,
-            "score": final_score,
+            "filename": resume.get("filename"),
+            "uploaded_by": resume.get("uploaded_by"),
 
-            "skills": skills_found,
+            "score": score,
+            "name": name,
+            "skills": skills,
 
             "email": contact["email"],
             "phone": contact["phone"],
             "github": links["github"],
             "linkedin": links["linkedin"],
 
-            # ✅ NEW METADATA
-            "metadata": {
-                "name": name,
-                "projects": projects_data["projects"],
-                "project_links": projects_data["project_links"]
-            }
+            "projects": projects
         })
 
     return sorted(results, key=lambda x: x["score"], reverse=True)
+
+
 # ---------------- ANALYTICS ----------------
 def generate_analytics(results):
     scores = [r["score"] for r in results]
 
     return {
         "scores": scores,
-        "average_score": round(sum(scores) / len(scores), 3) if scores else 0
+        "average_score": sum(scores) / len(scores) if scores else 0
     }
