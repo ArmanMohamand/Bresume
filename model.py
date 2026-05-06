@@ -1275,9 +1275,84 @@ def extract_metadata(text):
         "github": links["github"],
         "linkedin": links["linkedin"],
     }
+def extract_projects(text):
+    projects = []
+    links = []
 
+    # find project-like lines
+    lines = text.split("\n")
 
+    for line in lines:
+        if any(word in line.lower() for word in ["project", "app", "system", "website"]):
+            if len(line) < 120:
+                projects.append(line.strip())
+
+        # extract links
+        link = re.search(r'https?://[^\s]+', line)
+        if link:
+            links.append(link.group(0))
+
+    return {
+        "projects": list(set(projects))[:5],   # limit to 5
+        "project_links": list(set(links))[:5]
+    }
+def extract_links(text):
+    text = text.lower()
+
+    github = re.search(r'(https?://)?(www\.)?github\.com/[a-zA-Z0-9_-]+', text)
+    linkedin = re.search(r'(https?://)?(www\.)?linkedin\.com/in/[a-zA-Z0-9_-]+', text)
+
+    return {
+        "github": github.group(0) if github else None,
+        "linkedin": linkedin.group(0) if linkedin else None
+    }
+
+def extract_name(text):
+    lines = text.strip().split("\n")
+
+    for line in lines[:5]:  # check top 5 lines only
+        line = line.strip()
+
+        if len(line.split()) <= 4 and not any(char.isdigit() for char in line):
+            return line
+
+    return None
 # ---------------- RANKING ----------------
+
+# def rank_resumes(resumes, job_desc="", required_skills=None):
+
+#     results = []
+
+#     for i, resume in enumerate(resumes):
+
+#         raw_text = resume.get("text", "")
+
+#         skills_found = extract_skills(raw_text)
+#         metadata = extract_metadata(raw_text)
+
+#         # ✅ SCORE = NUMBER OF SKILLS
+#         final_score = len(skills_found)
+
+#         # DEBUG
+#         print("\n--- DEBUG ---")
+#         print("NAME:", metadata["name"])
+#         print("SKILLS:", skills_found)
+#         print("SCORE:", final_score)
+
+#         results.append({
+#             "resume_id": i + 1,
+#             "score": final_score,
+
+#             "skills": skills_found,
+
+#             "email": metadata["email"],
+#             "phone": metadata["phone"],
+
+#             "metadata": metadata
+#         })
+
+#     return sorted(results, key=lambda x: x["score"], reverse=True)
+
 def rank_resumes(resumes, job_desc="", required_skills=None):
 
     results = []
@@ -1285,18 +1360,17 @@ def rank_resumes(resumes, job_desc="", required_skills=None):
     for i, resume in enumerate(resumes):
 
         raw_text = resume.get("text", "")
+        text = normalize_text(raw_text)
 
-        skills_found = extract_skills(raw_text)
-        metadata = extract_metadata(raw_text)
+        skills_found = extract_skills(text)
 
-        # ✅ SCORE = NUMBER OF SKILLS
+        # ✅ SCORE = number of skills
         final_score = len(skills_found)
 
-        # DEBUG
-        print("\n--- DEBUG ---")
-        print("NAME:", metadata["name"])
-        print("SKILLS:", skills_found)
-        print("SCORE:", final_score)
+        contact = extract_contact(raw_text)
+        links = extract_links(raw_text)
+        name = extract_name(raw_text)
+        projects_data = extract_projects(raw_text)
 
         results.append({
             "resume_id": i + 1,
@@ -1304,15 +1378,20 @@ def rank_resumes(resumes, job_desc="", required_skills=None):
 
             "skills": skills_found,
 
-            "email": metadata["email"],
-            "phone": metadata["phone"],
+            "email": contact["email"],
+            "phone": contact["phone"],
+            "github": links["github"],
+            "linkedin": links["linkedin"],
 
-            "metadata": metadata
+            # ✅ NEW METADATA
+            "metadata": {
+                "name": name,
+                "projects": projects_data["projects"],
+                "project_links": projects_data["project_links"]
+            }
         })
 
     return sorted(results, key=lambda x: x["score"], reverse=True)
-
-
 # ---------------- ANALYTICS ----------------
 def generate_analytics(results):
     scores = [r["score"] for r in results]
