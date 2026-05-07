@@ -523,6 +523,7 @@ def extract_metadata(text, username=None):
 
 
 # ---------------- RANK RESUMES ----------------
+# ---------------- RANK RESUMES ----------------
 def rank_resumes(
     resumes,
     job_desc="",
@@ -536,7 +537,9 @@ def rank_resumes(
 
         raw_text = resume.get("text", "")
 
-        username = resume.get("username")
+        username = resume.get("username", "Unknown")
+
+        filename = resume.get("filename", "Resume.pdf")
 
         metadata = extract_metadata(
             raw_text,
@@ -545,7 +548,7 @@ def rank_resumes(
 
         skills_found = extract_skills(raw_text)
 
-        # score = number of skills only
+        # score = number of skills
         final_score = len(skills_found)
 
         # own resume first
@@ -554,7 +557,11 @@ def rank_resumes(
 
         result = {
 
+            # IMPORTANT
             "resume_id": resume.get("id", i + 1),
+
+            # NEW
+            "filename": filename,
 
             "score": final_score,
 
@@ -578,7 +585,6 @@ def rank_resumes(
         key=lambda x: x["score"],
         reverse=True
     )
-
 
 # ---------------- ANALYTICS ----------------
 def generate_analytics(results):

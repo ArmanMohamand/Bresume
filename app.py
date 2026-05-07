@@ -542,17 +542,22 @@ def rank():
 
     for r in resumes_db:
 
-        resumes.append({
+      resumes.append({
 
-            "id": str(r["_id"]),
+    "id": str(r["_id"]),
 
-            "text": r.get("text", ""),
+    "filename": r.get(
+        "filename",
+        "Resume.pdf"
+    ),
 
-            "username": r.get(
-                "username",
-                "Unknown"
-            )
-        })
+    "text": r.get("text", ""),
+
+    "username": r.get(
+        "username",
+        "Unknown"
+    )
+})
 
     ranked = rank_resumes(
 
