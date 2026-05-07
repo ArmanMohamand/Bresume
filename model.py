@@ -238,11 +238,8 @@ def extract_metadata(
 
     projects = extract_projects(text)
 
-    github = (
-        custom_github
-        if custom_github
-        else links["github"]
-    )
+    github = links["github"]
+
 
     linkedin = (
         custom_linkedin

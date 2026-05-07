@@ -158,7 +158,7 @@ def upload():
 
         linkedin = data.get("linkedin")
 
-        github = data.get("github")
+        # github = data.get("github")
 
         project_links = data.get(
             "project_links",
@@ -220,7 +220,7 @@ def upload():
         # NEW
         "linkedin": linkedin,
 
-        "github": github,
+        # "github": github,
 
         "project_links": project_links
     })
