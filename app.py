@@ -438,7 +438,6 @@ def update_job(id):
         "job": update_data
     })
 
-
 # ---------------- DELETE RESUME ----------------
 @app.route(
     "/delete_resume/<resume_id>",
@@ -479,6 +478,13 @@ def delete_resume(resume_id):
             "error": "Unauthorized"
         }), 403
 
+    # DELETE FILE FROM STORAGE
+    filepath = resume.get("filepath")
+
+    if filepath and os.path.exists(filepath):
+        os.remove(filepath)
+
+    # DELETE FROM DATABASE
     resumes_collection.delete_one({
         "_id": ObjectId(resume_id)
     })
@@ -486,8 +492,6 @@ def delete_resume(resume_id):
     return jsonify({
         "message": "Resume deleted successfully"
     }), 200
-
-
 # ---------------- DELETE JOB ----------------
 @app.route(
     "/jobdesc/delete/<id>",
