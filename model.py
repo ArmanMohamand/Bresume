@@ -615,13 +615,17 @@ def extract_contact(text):
 
 
 # ---------------- LINKS ----------------
+# ---------------- LINKS ----------------
 def extract_links(text):
+
+    # FULL GITHUB LINK
     github = re.search(
         r'(https?://)?(www\.)?github\.com/[a-zA-Z0-9_-]+',
         text,
         re.IGNORECASE
     )
 
+    # FULL LINKEDIN LINK
     linkedin = re.search(
         r'(https?://)?(www\.)?linkedin\.com/in/[a-zA-Z0-9_-]+',
         text,
@@ -630,6 +634,38 @@ def extract_links(text):
 
     github_url = github.group(0) if github else None
     linkedin_url = linkedin.group(0) if linkedin else None
+
+    # ---------------- GITHUB USERNAME ----------------
+    if not github_url:
+
+        github_name = re.search(
+            r'github\s*:?\s*([a-zA-Z0-9_-]+)',
+            text,
+            re.IGNORECASE
+        )
+
+        if github_name:
+            github_url = f"https://github.com/{github_name.group(1)}"
+
+    # ---------------- LINKEDIN NAME ----------------
+    if not linkedin_url:
+
+        linkedin_name = re.search(
+            r'linkedin\s*:?\s*([a-zA-Z0-9 _-]+)',
+            text,
+            re.IGNORECASE
+        )
+
+        if linkedin_name:
+
+            username = (
+                linkedin_name
+                .group(1)
+                .strip()
+                .replace(" ", "-")
+            )
+
+            linkedin_url = f"https://linkedin.com/in/{username}"
 
     # add https if missing
     if github_url and not github_url.startswith("http"):
