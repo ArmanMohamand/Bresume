@@ -753,7 +753,12 @@ def extract_metadata(text):
 
 
 # ---------------- RANK RESUMES ----------------
-def rank_resumes(resumes, current_user_email=None):
+def rank_resumes(
+    resumes,
+    job_desc="",
+    required_skills=None,
+    current_user_email=None
+):
 
     results = []
 
