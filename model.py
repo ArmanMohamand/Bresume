@@ -1,5 +1,4 @@
 # import re
-
 # # ---------------- NORMALIZE TEXT ----------------
 # def normalize_text(text):
 #     if not text:
@@ -19,7 +18,7 @@
 #     for k, v in replacements.items():
 #         text = text.replace(k, v)
 
-#     text = re.sub(r"[^a-z0-9+# ]", " ", text)
+#     text = re.sub(r"[^a-z0-9+#:/._ -]", " ", text)
 #     text = re.sub(r"\s+", " ", text)
 
 #     return text.strip()
@@ -35,283 +34,189 @@
 #         "phone": phone.group(0) if phone else None
 #     }
 
-
-# # ---------------- LINKS (FIXED) ----------------
-# def extract_links(text):
-#     github = re.search(r'(https?://)?(www\.)?github\.com/[^\s]+', text)
-#     linkedin = re.search(r'(https?://)?(www\.)?linkedin\.com/[^\s]+', text)
-
-#     return {
-#         "github": github.group(0) if github else None,
-#         "linkedin": linkedin.group(0) if linkedin else None
-#     }
-
-
-# # ---------------- NAME EXTRACTION ----------------
-# def extract_name(text):
-#     lines = text.split("\n")
-
-#     for line in lines[:15]:
-#         line = line.strip()
-
-#         if (
-#             2 <= len(line.split()) <= 4 and
-#             not re.search(r'@|http|\d|btech|education|college|university', line.lower())
-#         ):
-#             return line
-
-#     return None
-
-
-# # ---------------- SKILLS (FINAL CLEAN) ----------------
-# def extract_skills(text):
-#     text = normalize_text(text)
-
-#     skill_keywords = [
-#         # Languages
-#         "python", "java", "c++", "c", "javascript", "typescript",
-
-#         # Frontend
-#         "react", "nextjs", "vue", "angular", "tailwind", "bootstrap", "html", "css",
-
-#         # Backend
-#         "nodejs", "expressjs", "flask", "django",
-
-#         # Database
-#         "mongodb", "sql", "mysql", "postgresql",
-
-#         # Tools
-#         "docker", "aws", "git",
-
-#         # Concepts
-#         "dsa", "api", "rest"
-#     ]
-
-#     found = set()
-
-#     for skill in skill_keywords:
-#         if skill == "c":
-#             if re.search(r"\bc\b", text):
-#                 found.add(skill)
-#         else:
-#             if re.search(rf"\b{skill}\b", text):
-#                 found.add(skill)
-
-#     # smart detection
-#     if "data structure" in text or "algorithm" in text:
-#         found.add("dsa")
-
-#     return list(found)
-
-
-# # ---------------- METADATA ----------------
-# def extract_metadata(text):
-#     contact = extract_contact(text)
-#     links = extract_links(text)
-
-#     return {
-#         "name": extract_name(text),
-#         "email": contact["email"],
-#         "phone": contact["phone"],
-#         "github": links["github"],
-#         "linkedin": links["linkedin"],
-#     }
-# def extract_projects(text):
-#     projects = []
-#     links = []
-
-#     # find project-like lines
-#     lines = text.split("\n")
-
-#     for line in lines:
-#         if any(word in line.lower() for word in ["project", "app", "system", "website"]):
-#             if len(line) < 120:
-#                 projects.append(line.strip())
-
-#         # extract links
-#         link = re.search(r'https?://[^\s]+', line)
-#         if link:
-#             links.append(link.group(0))
-
-#     return {
-#         "projects": list(set(projects))[:5],   # limit to 5
-#         "project_links": list(set(links))[:5]
-#     }
-# def extract_links(text):
-#     text = text.lower()
-
-#     github = re.search(r'(https?://)?(www\.)?github\.com/[a-zA-Z0-9_-]+', text)
-#     linkedin = re.search(r'(https?://)?(www\.)?linkedin\.com/in/[a-zA-Z0-9_-]+', text)
-
-#     return {
-#         "github": github.group(0) if github else None,
-#         "linkedin": linkedin.group(0) if linkedin else None
-#     }
-
-# def extract_name(text):
-#     lines = text.strip().split("\n")
-
-#     for line in lines[:5]:  # check top 5 lines only
-#         line = line.strip()
-
-#         if len(line.split()) <= 4 and not any(char.isdigit() for char in line):
-#             return line
-
-#     return None
-# # ---------------- RANKING ----------------
-
-# # def rank_resumes(resumes, job_desc="", required_skills=None):
-
-# #     results = []
-
-# #     for i, resume in enumerate(resumes):
-
-# #         raw_text = resume.get("text", "")
-
-# #         skills_found = extract_skills(raw_text)
-# #         metadata = extract_metadata(raw_text)
-
-# #         # ✅ SCORE = NUMBER OF SKILLS
-# #         final_score = len(skills_found)
-
-# #         # DEBUG
-# #         print("\n--- DEBUG ---")
-# #         print("NAME:", metadata["name"])
-# #         print("SKILLS:", skills_found)
-# #         print("SCORE:", final_score)
-
-# #         results.append({
-# #             "resume_id": i + 1,
-# #             "score": final_score,
-
-# #             "skills": skills_found,
-
-# #             "email": metadata["email"],
-# #             "phone": metadata["phone"],
-
-# #             "metadata": metadata
-# #         })
-
-# #     return sorted(results, key=lambda x: x["score"], reverse=True)
-
-
-
-# import re
-# # from sklearn.feature_extraction.text import TfidfVectorizer
-# # from sklearn.metrics.pairwise import cosine_similarity
-
-
-# # ---------------- CONTACT ----------------
-# def extract_contact(text):
-#     email = re.search(r'[\w\.-]+@[\w\.-]+\.\w+', text)
-#     phone = re.search(r'\+?\d[\d\s-]{8,}\d', text)
-
-#     return {
-#         "email": email.group(0) if email else None,
-#         "phone": phone.group(0) if phone else None
-#     }
-
-
-# # ---------------- NAME ----------------
-# def extract_name(text):
-#     lines = text.split("\n")
-
-#     for line in lines[:20]:   
-#         line = line.strip()
-
-#         if (
-#             2 <= len(line.split()) <= 4 and
-#             not re.search(r'@|http|\d|btech|education|college|university|project', line.lower())
-#         ):
-#             return line
-
-#     return None
-
-# # ---------------- SKILLS ----------------
-# SKILLS_DB = [
-#     "python", "java", "c++", "c", "javascript",
-#     "react", "next.js", "node.js", "express.js",
-#     "flask", "django", "mongodb", "sql",
-#     "docker", "aws", "html", "css", "tailwind"
-# ]
-
-# def extract_skills(text):
-#     text = text.lower()
-
-#     normalized = text.replace("node.js", "nodejs") \
-#                      .replace("next.js", "nextjs") \
-#                      .replace("express.js", "expressjs")
-
-#     skills = []
-#     for s in SKILLS_DB:
-#         if s.replace(".", "") in normalized:
-#             skills.append(s)
-
-#     return skills
-
-
 # # ---------------- LINKS ----------------
 # def extract_links(text):
-#     text = text.replace("\n", " ")
 
-#     github = None
-#     linkedin = None
+#     # FULL GITHUB LINK
+#     github = re.search(
+#         r'(https?://)?(www\.)?github\.com/[a-zA-Z0-9_-]+',
+#         text,
+#         re.IGNORECASE
+#     )
 
-#     # direct URLs
-#     github_url = re.search(r'https?://github\.com/[^\s]+', text, re.IGNORECASE)
-#     linkedin_url = re.search(r'https?://(www\.)?linkedin\.com/[^\s]+', text, re.IGNORECASE)
+#     # FULL LINKEDIN LINK
+#     linkedin = re.search(
+#         r'(https?://)?(www\.)?linkedin\.com/in/[a-zA-Z0-9_-]+',
+#         text,
+#         re.IGNORECASE
+#     )
 
-#     if github_url:
-#         github = github_url.group(0)
+#     github_url = github.group(0) if github else None
+#     linkedin_url = linkedin.group(0) if linkedin else None
 
-#     if linkedin_url:
-#         linkedin = linkedin_url.group(0)
+#     # ---------------- GITHUB USERNAME ----------------
+#     if not github_url:
 
-#     # username-based fallback
-#     if not github:
-#         g_match = re.search(r'github\s*[:\-]?\s*([A-Za-z0-9_-]{3,})', text, re.IGNORECASE)
-#         if g_match:
-#             github = f"https://github.com/{g_match.group(1)}"
+#         github_name = re.search(
+#             r'github\s*:?\s*([a-zA-Z0-9_-]+)',
+#             text,
+#             re.IGNORECASE
+#         )
 
-#     if not linkedin:
-#         l_match = re.search(r'linkedin\s*[:\-]?\s*([A-Za-z ]{3,})', text, re.IGNORECASE)
-#         if l_match:
-#             name = l_match.group(1)
-#             name = re.split(r'github|email|phone', name, flags=re.IGNORECASE)[0]
-#             name = " ".join(name.strip().split())
-#             linkedin = f"https://linkedin.com/in/{name.replace(' ', '-')}"
+#         if github_name:
+#             github_url = f"https://github.com/{github_name.group(1)}"
+
+#     # ---------------- LINKEDIN NAME ----------------
+#     if not linkedin_url:
+
+#         linkedin_name = re.search(
+#             r'linkedin\s*:?\s*([a-zA-Z0-9 -]+)',
+#             text,
+#             re.IGNORECASE
+#         )
+
+#         if linkedin_name:
+
+#             username = (
+#                 linkedin_name
+#                 .group(1)
+#                 .strip()
+#                 .split("GitHub")[0]
+#                 .strip()
+#                 .replace(" ", "-")
+#             )
+
+#             linkedin_url = f"https://linkedin.com/in/{username}"
+
+#     # add https if missing
+#     if github_url and not github_url.startswith("http"):
+#         github_url = "https://" + github_url
+
+#     if linkedin_url and not linkedin_url.startswith("http"):
+#         linkedin_url = "https://" + linkedin_url
 
 #     return {
-#         "github": github,
-#         "linkedin": linkedin
+#         "github": github_url,
+#         "linkedin": linkedin_url
 #     }
+# # ---------------- USERNAME AS NAME ----------------
+# def extract_username(email):
+#     if not email:
+#         return None
+
+#     return email.split("@")[0]
 
 
 # # ---------------- PROJECTS ----------------
 # def extract_projects(text):
 #     projects = []
-#     links = []
+#     project_links = []
 
 #     lines = text.split("\n")
 
 #     for line in lines:
-#         l = line.lower()
+#         clean_line = line.strip()
 
-#         # better detection
-#         if any(word in l for word in ["project", "developed", "built", "application", "system"]):
-#             if 20 < len(line) < 120:
-#                 projects.append(line.strip())
+#         # detect project titles
+#         if any(keyword in clean_line.lower() for keyword in [
+#             "project",
+#             "system",
+#             "website",
+#             "app",
+#             "management"
+#         ]):
 
-#         # extract links
-#         found_links = re.findall(r'https?://[^\s]+', line)
-#         for link in found_links:
-#             links.append(link)
+#             if 10 < len(clean_line) < 200:
+#                 projects.append(clean_line)
+
+#         # detect urls
+#         urls = re.findall(r'https?://[^\s]+', clean_line)
+
+#         for url in urls:
+#             if "linkedin.com" not in url and "github.com" not in url:
+#                 project_links.append(url)
+
+#     # remove duplicates
+#     projects = list(dict.fromkeys(projects))[:5]
+#     project_links = list(dict.fromkeys(project_links))[:5]
 
 #     return {
-#         "projects": list(set(projects))[:5],
-#         "project_links": list(set(links))[:5]
+#         "projects": projects,
+#         "project_links": project_links
 #     }
-# def rank_resumes(resumes, job_desc="", required_skills=None):
+
+
+# # ---------------- SKILLS ----------------
+# def extract_skills(text):
+#     text = normalize_text(text)
+
+#     skill_keywords = [
+#         # languages
+#         "python", "java", "c++", "c", "javascript", "typescript",
+
+#         # frontend
+#         "react", "nextjs", "vue", "angular", "tailwind",
+#         "bootstrap", "html", "css", "vite",
+
+#         # backend
+#         "nodejs", "expressjs", "flask", "django",
+
+#         # database
+#         "mongodb", "sql", "mysql", "postgresql",
+
+#         # tools
+#         "docker", "aws", "git", "github", "vercel", "render",
+
+#         # concepts
+#         "dsa", "rest", "jwt", "api"
+#     ]
+
+#     found = []
+
+#     for skill in skill_keywords:
+
+#         if skill == "c":
+#             if re.search(r'\bc\b', text):
+#                 found.append(skill)
+
+#         elif re.search(rf'\b{re.escape(skill)}\b', text):
+#             found.append(skill)
+
+#     # smart dsa detection
+#     if "data structure" in text or "algorithms" in text:
+#         if "dsa" not in found:
+#             found.append("dsa")
+
+#     return list(dict.fromkeys(found))
+
+
+# # ---------------- METADATA ----------------
+# # ---------------- METADATA ----------------
+# def extract_metadata(text, username=None):
+
+#     contact = extract_contact(text)
+
+#     links = extract_links(text)
+
+#     projects = extract_projects(text)
+
+#     return {
+#         "name": username,
+#         "email": contact["email"],
+#         "phone": contact["phone"],
+#         "github": links["github"],
+#         "linkedin": links["linkedin"],
+#         "projects": projects["projects"],
+#         "project_links": projects["project_links"]
+#     }
+
+# # ---------------- RANK RESUMES ----------------
+# def rank_resumes(
+#     resumes,
+#     job_desc="",
+#     required_skills=None,
+#     current_user_email=None
+# ):
 
 #     results = []
 
@@ -319,267 +224,58 @@
 
 #         raw_text = resume.get("text", "")
 
-#         skills_found = extract_skills(raw_text)
-#         metadata = extract_metadata(raw_text)
+#         username = resume.get("username")
 
-#         # ✅ SCORE = NUMBER OF SKILLS
+#         metadata = extract_metadata(raw_text, username)
+
+#         skills_found = extract_skills(raw_text)
+
 #         final_score = len(skills_found)
 
-#         # DEBUG
-#         print("\n--- DEBUG ---")
-#         print("NAME:", metadata["name"])
-#         print("SKILLS:", skills_found)
-#         print("SCORE:", final_score)
+#         # own resume first
+#         if metadata["email"] == current_user_email:
+#             final_score += 1000
 
-#         results.append({
-#             "resume_id": i + 1,
+#         result = {
+#             "resume_id": resume.get("id", i + 1),
+
 #             "score": final_score,
 
 #             "skills": skills_found,
 
 #             "email": metadata["email"],
+
 #             "phone": metadata["phone"],
 
+#             "github": metadata["github"],
+
+#             "linkedin": metadata["linkedin"],
+
 #             "metadata": metadata
-#         })
+#         }
 
-#     return sorted(results, key=lambda x: x["score"], reverse=True)
+#         results.append(result)
 
-
-
-# # # ---------------- RANKING ----------------
-# # def rank_resumes(resumes, job_desc="", required_skills=None):
-
-# #     texts = [job_desc] + [r.get("text", "") for r in resumes]
-
-# #     vectorizer = TfidfVectorizer(stop_words="english")
-# #     tfidf = vectorizer.fit_transform(texts)
-
-# #     job_vector = tfidf[0]
-# #     resume_vectors = tfidf[1:]
-
-# #     similarities = cosine_similarity(job_vector, resume_vectors)[0]
-
-# #     results = []
-
-# #     for i, resume in enumerate(resumes):
-# #         text = resume.get("text", "")
-
-# #         name = extract_name(text)
-# #         contact = extract_contact(text)
-# #         skills = extract_skills(text)
-# #         links = extract_links(text)
-# #         projects = extract_projects(text)
-
-# #         score = float(similarities[i])
-
-# #         results.append({
-# #             "resume_id": i + 1,
-# #             "filename": resume.get("filename"),
-# #             "uploaded_by": resume.get("uploaded_by"),
-
-# #             "score": score,
-# #             "name": name,
-# #             "skills": skills,
-
-# #             "email": contact["email"],
-# #             "phone": contact["phone"],
-# #             "github": links["github"],
-# #             "linkedin": links["linkedin"],
-
-# #             "projects": projects
-# #         })
-
-# #     return sorted(results, key=lambda x: x["score"], reverse=True)
-
-
-# # ---------------- ANALYTICS ----------------
-# def generate_analytics(results):
-#     scores = [r["score"] for r in results]
-
-#     return {
-#         "scores": scores,
-#         "average_score": sum(scores) / len(scores) if scores else 0
-#     }
-
-
-# import re
-
-# # ---------------- CONTACT ----------------
-# def extract_contact(text):
-#     email = re.search(r'[\w\.-]+@[\w\.-]+\.\w+', text)
-#     phone = re.search(r'\+?\d[\d\s-]{8,}\d', text)
-
-#     return {
-#         "email": email.group(0) if email else None,
-#         "phone": phone.group(0) if phone else None
-#     }
-
-
-# # ---------------- NAME ----------------
-# def extract_name(text):
-#     lines = text.split("\n")
-
-#     skip_words = [
-#         "resume", "skills", "education", "projects",
-#         "experience", "certifications", "technical", "summary"
-#     ]
-
-#     for line in lines[:15]:
-#         line = line.strip()
-
-#         if not line:
-#             continue
-
-#         if any(word in line.lower() for word in skip_words):
-#             continue
-
-#         if 2 <= len(line.split()) <= 4 and line.replace(" ", "").isalpha():
-#             return line
-
-#     return None
-
-
-# # ---------------- SKILLS ----------------
-# SKILLS_DB = [
-#     "python", "java", "c++", "c", "javascript",
-#     "react", "next.js", "node.js", "express.js",
-#     "flask", "django", "mongodb", "sql",
-#     "docker", "aws", "html", "css", "tailwind"
-# ]
-
-# def extract_skills(text):
-#     text = text.lower()
-
-#     normalized = (
-#         text.replace("node.js", "nodejs")
-#             .replace("next.js", "nextjs")
-#             .replace("express.js", "expressjs")
+#     return sorted(
+#         results,
+#         key=lambda x: x["score"],
+#         reverse=True
 #     )
 
-#     return [s for s in SKILLS_DB if s.replace(".", "") in normalized]
-
-
-# # ---------------- LINKS ----------------
-# def extract_links(text):
-#     text = text.replace("\n", " ")
-
-#     github = None
-#     linkedin = None
-
-#     github_url = re.search(r'https?://github\.com/[^\s]+', text, re.IGNORECASE)
-#     linkedin_url = re.search(r'https?://(www\.)?linkedin\.com/[^\s]+', text, re.IGNORECASE)
-
-#     if github_url:
-#         github = github_url.group(0)
-
-#     if linkedin_url:
-#         linkedin = linkedin_url.group(0)
-
-#     return {
-#         "github": github,
-#         "linkedin": linkedin
-#     }
-
-
-# # ---------------- PROJECTS ----------------
-# def extract_projects(text):
-#     projects = []
-#     links = []
-
-#     lines = text.split("\n")
-
-#     for line in lines:
-#         l = line.lower()
-
-#         # detect project-like lines
-#         if any(word in l for word in ["project", "built", "developed", "system", "application"]):
-#             clean = line.strip()
-#             if 20 < len(clean) < 200:
-#                 projects.append(clean)
-
-#         # extract links
-#         found_links = re.findall(r'https?://[^\s]+', line)
-#         links.extend(found_links)
-
-#     return {
-#         "projects": list(set(projects))[:5],
-#         "project_links": list(set(links))[:5]
-#     }
-
-
-# # ---------------- RANKING (FINAL RULE-BASED) ----------------
-# def rank_resumes(resumes, job_desc="", required_skills=None):
-
-#     results = []
-
-#     req_skills = set([s.lower() for s in required_skills]) if required_skills else set()
-
-#     for i, resume in enumerate(resumes):
-
-#         text = resume.get("text", "")
-
-#         skills = extract_skills(text)
-#         contact = extract_contact(text)
-#         links = extract_links(text)
-#         projects = extract_projects(text)
-#         name = extract_name(text)
-
-#         # ---------------- SCORING ----------------
-#         score = 0
-
-#         # 1. skill count
-#         score += len(skills)
-
-#         # 2. required skills match (higher weight)
-#         if req_skills:
-#             matched = [s for s in skills if s in req_skills]
-#             score += len(matched) * 2
-
-#         # 3. project bonus
-#         score += len(projects["projects"])
-
-#         # 4. GitHub / LinkedIn bonus
-#         if links["github"]:
-#             score += 1
-#         if links["linkedin"]:
-#             score += 1
-
-#         results.append({
-#             "resume_id": i + 1,
-#             "name": name,
-#             "score": score,
-
-#             "skills": skills,
-
-#             "email": contact["email"],
-#             "phone": contact["phone"],
-
-#             "github": links["github"],
-#             "linkedin": links["linkedin"],
-
-#             "projects": projects["projects"],
-#             "project_links": projects["project_links"]
-#         })
-
-#     return sorted(results, key=lambda x: x["score"], reverse=True)
-
-
 # # ---------------- ANALYTICS ----------------
 # def generate_analytics(results):
 #     scores = [r["score"] for r in results]
 
 #     return {
 #         "scores": scores,
-#         "average_score": sum(scores) / len(scores) if scores else 0
+#         "average_score": round(sum(scores) / len(scores), 3) if scores else 0
 #     }
 
-# final model.py
-
-
 import re
+
 # ---------------- NORMALIZE TEXT ----------------
 def normalize_text(text):
+
     if not text:
         return ""
 
@@ -605,8 +301,16 @@ def normalize_text(text):
 
 # ---------------- CONTACT ----------------
 def extract_contact(text):
-    email = re.search(r'[\w\.-]+@[\w\.-]+\.\w+', text)
-    phone = re.search(r'\b\d{10}\b', text)
+
+    email = re.search(
+        r'[\w\.-]+@[\w\.-]+\.\w+',
+        text
+    )
+
+    phone = re.search(
+        r'\b\d{10}\b',
+        text
+    )
 
     return {
         "email": email.group(0) if email else None,
@@ -615,17 +319,16 @@ def extract_contact(text):
 
 
 # ---------------- LINKS ----------------
-# ---------------- LINKS ----------------
 def extract_links(text):
 
-    # FULL GITHUB LINK
+    # github full url
     github = re.search(
         r'(https?://)?(www\.)?github\.com/[a-zA-Z0-9_-]+',
         text,
         re.IGNORECASE
     )
 
-    # FULL LINKEDIN LINK
+    # linkedin full url only
     linkedin = re.search(
         r'(https?://)?(www\.)?linkedin\.com/in/[a-zA-Z0-9_-]+',
         text,
@@ -635,7 +338,7 @@ def extract_links(text):
     github_url = github.group(0) if github else None
     linkedin_url = linkedin.group(0) if linkedin else None
 
-    # ---------------- GITHUB USERNAME ----------------
+    # github username fallback
     if not github_url:
 
         github_name = re.search(
@@ -645,27 +348,9 @@ def extract_links(text):
         )
 
         if github_name:
-            github_url = f"https://github.com/{github_name.group(1)}"
-
-    # ---------------- LINKEDIN NAME ----------------
-    if not linkedin_url:
-
-        linkedin_name = re.search(
-            r'linkedin\s*:?\s*([a-zA-Z0-9 _-]+)',
-            text,
-            re.IGNORECASE
-        )
-
-        if linkedin_name:
-
-            username = (
-                linkedin_name
-                .group(1)
-                .strip()
-                .replace(" ", "-")
+            github_url = (
+                f"https://github.com/{github_name.group(1)}"
             )
-
-            linkedin_url = f"https://linkedin.com/in/{username}"
 
     # add https if missing
     if github_url and not github_url.startswith("http"):
@@ -680,22 +365,16 @@ def extract_links(text):
     }
 
 
-# ---------------- USERNAME AS NAME ----------------
-def extract_username(email):
-    if not email:
-        return None
-
-    return email.split("@")[0]
-
-
 # ---------------- PROJECTS ----------------
 def extract_projects(text):
+
     projects = []
     project_links = []
 
     lines = text.split("\n")
 
     for line in lines:
+
         clean_line = line.strip()
 
         # detect project titles
@@ -711,15 +390,24 @@ def extract_projects(text):
                 projects.append(clean_line)
 
         # detect urls
-        urls = re.findall(r'https?://[^\s]+', clean_line)
+        urls = re.findall(
+            r'https?://[^\s]+',
+            clean_line
+        )
 
         for url in urls:
-            if "linkedin.com" not in url and "github.com" not in url:
+
+            if (
+                "linkedin.com" not in url
+                and "github.com" not in url
+            ):
                 project_links.append(url)
 
-    # remove duplicates
     projects = list(dict.fromkeys(projects))[:5]
-    project_links = list(dict.fromkeys(project_links))[:5]
+
+    project_links = list(
+        dict.fromkeys(project_links)
+    )[:5]
 
     return {
         "projects": projects,
@@ -729,27 +417,55 @@ def extract_projects(text):
 
 # ---------------- SKILLS ----------------
 def extract_skills(text):
+
     text = normalize_text(text)
 
     skill_keywords = [
+
         # languages
-        "python", "java", "c++", "c", "javascript", "typescript",
+        "python",
+        "java",
+        "c++",
+        "c",
+        "javascript",
+        "typescript",
 
         # frontend
-        "react", "nextjs", "vue", "angular", "tailwind",
-        "bootstrap", "html", "css", "vite",
+        "react",
+        "nextjs",
+        "vue",
+        "angular",
+        "tailwind",
+        "bootstrap",
+        "html",
+        "css",
+        "vite",
 
         # backend
-        "nodejs", "expressjs", "flask", "django",
+        "nodejs",
+        "expressjs",
+        "flask",
+        "django",
 
         # database
-        "mongodb", "sql", "mysql", "postgresql",
+        "mongodb",
+        "sql",
+        "mysql",
+        "postgresql",
 
         # tools
-        "docker", "aws", "git", "github", "vercel", "render",
+        "docker",
+        "aws",
+        "git",
+        "github",
+        "vercel",
+        "render",
 
         # concepts
-        "dsa", "rest", "jwt", "api"
+        "dsa",
+        "rest",
+        "jwt",
+        "api"
     ]
 
     found = []
@@ -757,14 +473,22 @@ def extract_skills(text):
     for skill in skill_keywords:
 
         if skill == "c":
+
             if re.search(r'\bc\b', text):
                 found.append(skill)
 
-        elif re.search(rf'\b{re.escape(skill)}\b', text):
+        elif re.search(
+            rf'\b{re.escape(skill)}\b',
+            text
+        ):
             found.append(skill)
 
     # smart dsa detection
-    if "data structure" in text or "algorithms" in text:
+    if (
+        "data structure" in text
+        or "algorithms" in text
+    ):
+
         if "dsa" not in found:
             found.append("dsa")
 
@@ -772,18 +496,28 @@ def extract_skills(text):
 
 
 # ---------------- METADATA ----------------
-def extract_metadata(text):
+def extract_metadata(text, username=None):
+
     contact = extract_contact(text)
+
     links = extract_links(text)
+
     projects = extract_projects(text)
 
     return {
-        "name": extract_username(contact["email"]),
+
+        "name": username,
+
         "email": contact["email"],
+
         "phone": contact["phone"],
+
         "github": links["github"],
+
         "linkedin": links["linkedin"],
+
         "projects": projects["projects"],
+
         "project_links": projects["project_links"]
     }
 
@@ -802,40 +536,59 @@ def rank_resumes(
 
         raw_text = resume.get("text", "")
 
-        metadata = extract_metadata(raw_text)
+        username = resume.get("username")
+
+        metadata = extract_metadata(
+            raw_text,
+            username
+        )
 
         skills_found = extract_skills(raw_text)
 
-        # score = number of skills
+        # score = number of skills only
         final_score = len(skills_found)
 
+        # own resume first
+        if metadata["email"] == current_user_email:
+            final_score += 1000
+
         result = {
+
             "resume_id": resume.get("id", i + 1),
+
             "score": final_score,
+
             "skills": skills_found,
 
             "email": metadata["email"],
+
             "phone": metadata["phone"],
+
             "github": metadata["github"],
+
             "linkedin": metadata["linkedin"],
 
             "metadata": metadata
         }
 
-        # put user's own resume on top
-        if current_user_email and metadata["email"] == current_user_email:
-            result["score"] += 1000
-
         results.append(result)
 
-    return sorted(results, key=lambda x: x["score"], reverse=True)
+    return sorted(
+        results,
+        key=lambda x: x["score"],
+        reverse=True
+    )
 
 
 # ---------------- ANALYTICS ----------------
 def generate_analytics(results):
+
     scores = [r["score"] for r in results]
 
     return {
         "scores": scores,
-        "average_score": round(sum(scores) / len(scores), 3) if scores else 0
+        "average_score": round(
+            sum(scores) / len(scores),
+            3
+        ) if scores else 0
     }
