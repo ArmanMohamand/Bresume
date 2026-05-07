@@ -228,7 +228,6 @@ def extract_metadata(
     text,
     username=None,
     custom_linkedin=None,
-    custom_github=None,
     custom_project_links=None
 ):
 
@@ -288,13 +287,10 @@ def rank_resumes(
         filename = resume.get("filename", "Resume.pdf")
 
         metadata = extract_metadata(
-            raw_text,
-            username,
+              raw_text,
+              username,
                 resume.get("linkedin"),
-
-    resume.get("github"),
-
-    resume.get("project_links", [])
+             resume.get("project_links", [])
 
         )
 
@@ -314,7 +310,7 @@ def rank_resumes(
 
             # NEW
             "filename": filename,
-
+  "filepath": resume.get("filepath"),
             "score": final_score,
 
             "skills": skills_found,

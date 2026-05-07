@@ -1,5 +1,7 @@
 from flask import Flask, request, jsonify
 from flask_cors import CORS
+from flask import send_from_directory
+from werkzeug.utils import secure_filename
 from flask_jwt_extended import (
     JWTManager,
     create_access_token,
@@ -58,7 +60,12 @@ def home():
         "message": "Backend running"
     })
 
+UPLOAD_FOLDER = "uploads"
 
+os.makedirs(
+    UPLOAD_FOLDER,
+    exist_ok=True
+)
 # ---------------- REGISTER ----------------
 @app.route("/register", methods=["POST"])
 def register():
@@ -141,61 +148,67 @@ def login():
 @jwt_required()
 def upload():
 
-    data = request.get_json(silent=True)
+    file = request.files.get("file")
 
-    text = None
-    filename = None
-
-    linkedin = None
-    github = None
-    project_links = []
-
-    if data and data.get("text"):
-
-        text = data["text"]
-
-        filename = data.get("filename")
-
-        linkedin = data.get("linkedin")
-
-        # github = data.get("github")
-
-        project_links = data.get(
-            "project_links",
-            []
-        )
-
-    else:
-
-        file = request.files.get("file")
-
-        if file:
-
-            filename = file.filename
-
-            if filename.endswith(".pdf"):
-
-                doc = fitz.open(
-                    stream=file.read(),
-                    filetype="pdf"
-                )
-
-                text = " ".join([
-                    page.get_text()
-                    for page in doc
-                ])
-
-            else:
-
-                text = file.read().decode(
-                    "utf-8",
-                    errors="ignore"
-                )
-
-    if not text or text.strip() == "":
+    if not file:
 
         return jsonify({
-            "error": "Could not extract text from resume"
+            "error": "No file uploaded"
+        }), 400
+
+    linkedin = request.form.get("linkedin")
+
+    import json
+
+    project_links = json.loads(
+        request.form.get(
+            "project_links",
+            "[]"
+        )
+    )
+
+    filename = (
+        str(ObjectId()) +
+        "_" +
+        secure_filename(file.filename)
+    )
+
+    filepath = os.path.join(
+        UPLOAD_FOLDER,
+        filename
+    )
+
+    # SAVE REAL FILE
+    file.save(filepath)
+
+    text = ""
+
+    # PDF
+    if filename.lower().endswith(".pdf"):
+
+        doc = fitz.open(filepath)
+
+        text = " ".join([
+            page.get_text()
+            for page in doc
+        ])
+
+    # TXT
+    else:
+
+        with open(
+            filepath,
+            "r",
+            encoding="utf-8",
+            errors="ignore"
+        ) as f:
+
+            text = f.read()
+
+    if not text.strip():
+
+        return jsonify({
+            "error": "Could not extract text"
         }), 400
 
     current_email = get_jwt_identity()
@@ -208,6 +221,8 @@ def upload():
 
         "filename": filename,
 
+        "filepath": filepath,
+
         "text": text,
 
         "uploaded_by": current_email,
@@ -217,19 +232,14 @@ def upload():
             "Unknown"
         ),
 
-        # NEW
         "linkedin": linkedin,
-
-        # "github": github,
 
         "project_links": project_links
     })
 
     return jsonify({
-        "message": "Uploaded"
-    })
-
-
+        "message": "Uploaded successfully"
+    }), 201
 # ---------------- RANK ----------------
 @app.route("/rank", methods=["POST"])
 @jwt_required()
@@ -271,7 +281,7 @@ def rank():
         "filename",
         "Resume.pdf"
     ),
-
+"filepath": r.get("filepath"),
     "text": r.get("text", ""),
 
     "username": r.get(
@@ -281,7 +291,7 @@ def rank():
      # NEW
     "linkedin": r.get("linkedin"),
 
-    "github": r.get("github"),
+    # "github": r.get("github"),
 
     "project_links": r.get(
         "project_links",
@@ -512,7 +522,14 @@ def delete_job(id):
         "message": "Deleted successfully"
     }), 200
 
+# ---------------- VIEW RESUME ----------------
+@app.route("/resume/<filename>")
+def view_resume(filename):
 
+    return send_from_directory(
+        "uploads",
+        filename
+    )
 # ---------------- RUN ----------------
 if __name__ == "__main__":
 
