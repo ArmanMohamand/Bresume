@@ -33,7 +33,6 @@ from model import (
     generate_analytics
 )
 
-# ---------------- INIT ----------------
 load_dotenv()
 
 app = Flask(__name__)
@@ -46,13 +45,11 @@ jwt = JWTManager(app)
 
 CORS(app)
 
-# ---------------- ADMIN ----------------
 ADMIN_EMAILS = [
     "khanarman23218@gmail.com",
     "236301052@gkv.ac.in",
 ]
 
-# ---------------- HOME ----------------
 @app.route("/")
 def home():
 
@@ -73,7 +70,7 @@ os.makedirs(
     UPLOAD_FOLDER,
     exist_ok=True
 )
-# ---------------- REGISTER ----------------
+
 @app.route("/register", methods=["POST"])
 def register():
 
@@ -102,8 +99,6 @@ def register():
         "message": "Registered"
     }), 201
 
-
-# ---------------- LOGIN ----------------
 @app.route("/login", methods=["POST"])
 def login():
 
@@ -150,7 +145,7 @@ def login():
         "access_token": token
     })
 
-# ---------------- UPLOAD RESUME ----------------
+
 @app.route("/upload", methods=["POST"])
 @jwt_required()
 def upload():
@@ -184,14 +179,12 @@ def upload():
         UPLOAD_FOLDER,
         filename
     )
-
-    # SAVE REAL FILE
     file.save(filepath)
     print("FILE SAVED TO:", filepath)
 
     text = ""
 
-    # PDF
+ 
     if filename.lower().endswith(".pdf"):
 
         doc = fitz.open(filepath)
@@ -201,7 +194,7 @@ def upload():
             for page in doc
         ])
 
-    # TXT
+   
     else:
 
         with open(
@@ -248,7 +241,7 @@ def upload():
     return jsonify({
         "message": "Uploaded successfully"
     }), 201
-# ---------------- RANK ----------------
+
 @app.route("/rank", methods=["POST"])
 @jwt_required()
 def rank():
@@ -296,10 +289,10 @@ def rank():
         "username",
         "Unknown"
     ),
-     # NEW
+    
     "linkedin": r.get("linkedin"),
 
-    # "github": r.get("github"),
+   
 
     "project_links": r.get(
         "project_links",
@@ -331,7 +324,7 @@ def rank():
     })
 
 
-# ---------------- SAVE JOB ----------------
+
 @app.route("/jobdesc/save", methods=["POST"])
 @jwt_required()
 def save_job():
@@ -365,8 +358,6 @@ def save_job():
         "job": job
     })
 
-
-# ---------------- LIST JOBS ----------------
 @app.route("/jobdesc/list", methods=["GET"])
 @jwt_required()
 def list_jobs():
@@ -401,8 +392,6 @@ def list_jobs():
 
     return jsonify(jobs), 200
 
-
-# ---------------- UPDATE JOB ----------------
 @app.route(
     "/jobdesc/update/<id>",
     methods=["PUT"]
@@ -446,7 +435,6 @@ def update_job(id):
         "job": update_data
     })
 
-# ---------------- DELETE RESUME ----------------
 @app.route(
     "/delete_resume/<resume_id>",
     methods=["DELETE"]
@@ -486,13 +474,13 @@ def delete_resume(resume_id):
             "error": "Unauthorized"
         }), 403
 
-    # DELETE FILE FROM STORAGE
+   
     filepath = resume.get("filepath")
 
     if filepath and os.path.exists(filepath):
         os.remove(filepath)
 
-    # DELETE FROM DATABASE
+
     resumes_collection.delete_one({
         "_id": ObjectId(resume_id)
     })
@@ -500,7 +488,7 @@ def delete_resume(resume_id):
     return jsonify({
         "message": "Resume deleted successfully"
     }), 200
-# ---------------- DELETE JOB ----------------
+
 @app.route(
     "/jobdesc/delete/<id>",
     methods=["DELETE"]
@@ -534,7 +522,6 @@ def delete_job(id):
         "message": "Deleted successfully"
     }), 200
 
-# ---------------- VIEW RESUME ----------------
 @app.route("/resume/<filename>")
 def view_resume(filename):
 
@@ -546,7 +533,7 @@ def view_resume(filename):
         filename,
         as_attachment=False
     )
-# ---------------- RUN ----------------
+
 if __name__ == "__main__":
 
     port = int(

@@ -1,6 +1,5 @@
 import re
 
-# ---------------- NORMALIZE TEXT ----------------
 def normalize_text(text):
 
     if not text:
@@ -26,7 +25,6 @@ def normalize_text(text):
     return text.strip()
 
 
-# ---------------- CONTACT ----------------
 def extract_contact(text):
 
     email = re.search(
@@ -48,14 +46,14 @@ def extract_contact(text):
 # ---------------- LINKS ----------------
 def extract_links(text):
 
-    # github full url
+   
     github = re.search(
         r'(https?://)?(www\.)?github\.com/[a-zA-Z0-9_-]+',
         text,
         re.IGNORECASE
     )
 
-    # linkedin full url only
+  
     linkedin = re.search(
         r'(https?://)?(www\.)?linkedin\.com/in/[a-zA-Z0-9_-]+',
         text,
@@ -65,7 +63,6 @@ def extract_links(text):
     github_url = github.group(0) if github else None
     linkedin_url = linkedin.group(0) if linkedin else None
 
-    # github username fallback
     if not github_url:
 
         github_name = re.search(
@@ -79,7 +76,7 @@ def extract_links(text):
                 f"https://github.com/{github_name.group(1)}"
             )
 
-    # add https if missing
+
     if github_url and not github_url.startswith("http"):
         github_url = "https://" + github_url
 
@@ -92,7 +89,7 @@ def extract_links(text):
     }
 
 
-# ---------------- PROJECTS ----------------
+
 def extract_projects(text):
 
     projects = []
@@ -104,7 +101,7 @@ def extract_projects(text):
 
         clean_line = line.strip()
 
-        # detect project titles
+        
         if any(keyword in clean_line.lower() for keyword in [
             "project",
             "system",
@@ -116,7 +113,7 @@ def extract_projects(text):
             if 10 < len(clean_line) < 200:
                 projects.append(clean_line)
 
-        # detect urls
+       
         urls = re.findall(
             r'https?://[^\s]+',
             clean_line
@@ -141,15 +138,13 @@ def extract_projects(text):
         "project_links": project_links
     }
 
-
-# ---------------- SKILLS ----------------
 def extract_skills(text):
 
     text = normalize_text(text)
 
     skill_keywords = [
 
-        # languages
+        
         "python",
         "java",
         "c++",
@@ -157,7 +152,7 @@ def extract_skills(text):
         "javascript",
         "typescript",
 
-        # frontend
+        
         "react",
         "nextjs",
         "vue",
@@ -168,19 +163,19 @@ def extract_skills(text):
         "css",
         "vite",
 
-        # backend
+       
         "nodejs",
         "expressjs",
         "flask",
         "django",
 
-        # database
+       
         "mongodb",
         "sql",
         "mysql",
         "postgresql",
 
-        # tools
+        
         "docker",
         "aws",
         "git",
@@ -188,7 +183,7 @@ def extract_skills(text):
         "vercel",
         "render",
 
-        # concepts
+       
         "dsa",
         "rest",
         "jwt",
@@ -209,8 +204,6 @@ def extract_skills(text):
             text
         ):
             found.append(skill)
-
-    # smart dsa detection
     if (
         "data structure" in text
         or "algorithms" in text
@@ -267,7 +260,7 @@ def extract_metadata(
 
         "project_links": project_links
     }
-# ---------------- RANK RESUMES ----------------
+
 def rank_resumes(
     resumes,
     job_desc="",
@@ -295,10 +288,8 @@ def rank_resumes(
 
         skills_found = extract_skills(raw_text)
 
-        # score = number of skills
         final_score = len(skills_found)
 
-        # own resume first
         if metadata["email"] == current_user_email:
             final_score += 1000
 
@@ -329,7 +320,6 @@ def rank_resumes(
         reverse=True
     )
 
-# ---------------- ANALYTICS ----------------
 def generate_analytics(results):
 
     scores = [r["score"] for r in results]
