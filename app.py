@@ -538,9 +538,13 @@ def delete_job(id):
 @app.route("/resume/<filename>")
 def view_resume(filename):
 
+    print("LOOKING INSIDE:", UPLOAD_FOLDER)
+    print("REQUESTED FILE:", filename)
+
     return send_from_directory(
-        "UPLOAD_FOLDER",
-        filename
+        UPLOAD_FOLDER,
+        filename,
+        as_attachment=False
     )
 # ---------------- RUN ----------------
 if __name__ == "__main__":
