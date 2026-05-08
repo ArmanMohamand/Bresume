@@ -289,16 +289,19 @@ def rank_resumes(
         skills_found = extract_skills(raw_text)
 
         final_score = len(skills_found)
+        is_owner = (
+    metadata["email"] == current_user_email
+)
 
-        if metadata["email"] == current_user_email:
-            final_score += 1000
+        # if metadata["email"] == current_user_email:
+        #     final_score += 1000
 
         result = {
             "resume_id": resume.get("id", i + 1),
             "filename": filename,
             "filepath": resume.get("filepath"),
             "score": final_score,
-
+            "is_owner": is_owner,
             "skills": skills_found,
 
             "email": metadata["email"],
@@ -315,10 +318,12 @@ def rank_resumes(
         results.append(result)
 
     return sorted(
-        results,
-        key=lambda x: x["score"],
-        reverse=True
+    results,
+    key=lambda x: (
+        not x["is_owner"],
+        -x["score"]
     )
+)
 
 def generate_analytics(results):
 
