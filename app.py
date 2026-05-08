@@ -60,7 +60,14 @@ def home():
         "message": "Backend running"
     })
 
-UPLOAD_FOLDER = "uploads"
+BASE_DIR = os.path.dirname(
+    os.path.abspath(__file__)
+)
+
+UPLOAD_FOLDER = os.path.join(
+    BASE_DIR,
+    "uploads"
+)
 
 os.makedirs(
     UPLOAD_FOLDER,
@@ -180,6 +187,7 @@ def upload():
 
     # SAVE REAL FILE
     file.save(filepath)
+    print("FILE SAVED TO:", filepath)
 
     text = ""
 
