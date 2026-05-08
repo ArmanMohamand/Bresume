@@ -531,7 +531,7 @@ def delete_job(id):
 def view_resume(filename):
 
     return send_from_directory(
-        "uploads",
+        "UPLOAD_FOLDER",
         filename
     )
 # ---------------- RUN ----------------

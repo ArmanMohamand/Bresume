@@ -222,8 +222,7 @@ def extract_skills(text):
     return list(dict.fromkeys(found))
 
 
-# ---------------- METADATA ----------------
-# ---------------- METADATA ----------------
+
 def extract_metadata(
     text,
     username=None,
@@ -304,13 +303,9 @@ def rank_resumes(
             final_score += 1000
 
         result = {
-
-            # IMPORTANT
             "resume_id": resume.get("id", i + 1),
-
-            # NEW
             "filename": filename,
-  "filepath": resume.get("filepath"),
+            "filepath": resume.get("filepath"),
             "score": final_score,
 
             "skills": skills_found,
