@@ -326,7 +326,7 @@ def upload():
     # ---------------- CLOUDINARY UPLOAD ----------------
     upload_result = cloudinary.uploader.upload(
         filepath,
-        resource_type="raw",
+        resource_type="image",
         folder="resumes"
     )
 
