@@ -21,6 +21,8 @@ from datetime import datetime
 
 import os
 import fitz
+import cloudinary
+import cloudinary.uploader
 
 from db import (
     users_collection,
@@ -34,6 +36,12 @@ from model import (
 )
 
 load_dotenv()
+cloudinary.config(
+    cloud_name=os.getenv("CLOUDINARY_CLOUD_NAME"),
+    api_key=os.getenv("CLOUDINARY_API_KEY"),
+    api_secret=os.getenv("CLOUDINARY_API_SECRET"),
+    secure=True
+)
 
 app = Flask(__name__)
 from datetime import timedelta
@@ -43,6 +51,7 @@ app.config["JWT_ACCESS_TOKEN_EXPIRES"] = timedelta(days=1)
 app.config["JWT_SECRET_KEY"] = os.getenv(
     "JWT_SECRET_KEY"
 )
+
 
 jwt = JWTManager(app)
 
@@ -149,6 +158,102 @@ def login():
     })
 
 
+# @app.route("/upload", methods=["POST"])
+# @jwt_required()
+# def upload():
+
+#     file = request.files.get("file")
+
+#     if not file:
+
+#         return jsonify({
+#             "error": "No file uploaded"
+#         }), 400
+
+#     linkedin = request.form.get("linkedin")
+
+#     import json
+
+#     project_links = json.loads(
+#         request.form.get(
+#             "project_links",
+#             "[]"
+#         )
+#     )
+
+#     filename = (
+#         str(ObjectId()) +
+#         "_" +
+#         secure_filename(file.filename)
+#     )
+
+#     filepath = os.path.join(
+#         UPLOAD_FOLDER,
+#         filename
+#     )
+#     file.save(filepath)
+#     print("FILE SAVED TO:", filepath)
+
+#     text = ""
+
+ 
+#     if filename.lower().endswith(".pdf"):
+
+#         doc = fitz.open(filepath)
+
+#         text = " ".join([
+#             page.get_text()
+#             for page in doc
+#         ])
+
+   
+#     else:
+
+#         with open(
+#             filepath,
+#             "r",
+#             encoding="utf-8",
+#             errors="ignore"
+#         ) as f:
+
+#             text = f.read()
+
+#     if not text.strip():
+
+#         return jsonify({
+#             "error": "Could not extract text"
+#         }), 400
+
+#     current_email = get_jwt_identity()
+
+#     user = users_collection.find_one({
+#         "email": current_email
+#     })
+
+#     resumes_collection.insert_one({
+
+#         "filename": filename,
+
+#         "filepath": filepath,
+
+#         "text": text,
+
+#         "uploaded_by": current_email,
+
+#         "username": user.get(
+#             "username",
+#             "Unknown"
+#         ),
+
+#         "linkedin": linkedin,
+
+#         "project_links": project_links
+#     })
+
+#     return jsonify({
+#         "message": "Uploaded successfully"
+#     }), 201
+
 @app.route("/upload", methods=["POST"])
 @jwt_required()
 def upload():
@@ -178,16 +283,20 @@ def upload():
         secure_filename(file.filename)
     )
 
+    # TEMP FILE PATH
     filepath = os.path.join(
         UPLOAD_FOLDER,
         filename
     )
-    file.save(filepath)
-    print("FILE SAVED TO:", filepath)
 
+    # SAVE TEMPORARILY
+    file.save(filepath)
+
+    print("TEMP FILE SAVED:", filepath)
+
+    # ---------------- PDF TEXT EXTRACTION ----------------
     text = ""
 
- 
     if filename.lower().endswith(".pdf"):
 
         doc = fitz.open(filepath)
@@ -197,7 +306,6 @@ def upload():
             for page in doc
         ])
 
-   
     else:
 
         with open(
@@ -215,6 +323,21 @@ def upload():
             "error": "Could not extract text"
         }), 400
 
+    # ---------------- CLOUDINARY UPLOAD ----------------
+    upload_result = cloudinary.uploader.upload(
+        filepath,
+        resource_type="raw",
+        folder="resumes"
+    )
+
+    resume_url = upload_result["secure_url"]
+
+    print("CLOUDINARY URL:", resume_url)
+
+    # DELETE LOCAL FILE AFTER UPLOAD
+    if os.path.exists(filepath):
+        os.remove(filepath)
+
     current_email = get_jwt_identity()
 
     user = users_collection.find_one({
@@ -225,7 +348,7 @@ def upload():
 
         "filename": filename,
 
-        "filepath": filepath,
+        "resume_url": resume_url,
 
         "text": text,
 
@@ -285,7 +408,8 @@ def rank():
         "filename",
         "Resume.pdf"
     ),
-"filepath": r.get("filepath"),
+# "filepath": r.get("filepath"),
+"resume_url": r.get("resume_url"),
     "text": r.get("text", ""),
 
     "username": r.get(
@@ -478,10 +602,10 @@ def delete_resume(resume_id):
         }), 403
 
    
-    filepath = resume.get("filepath")
+    # filepath = resume.get("filepath")
 
-    if filepath and os.path.exists(filepath):
-        os.remove(filepath)
+    # if filepath and os.path.exists(filepath):
+    #     os.remove(filepath)
 
 
     resumes_collection.delete_one({
@@ -525,17 +649,18 @@ def delete_job(id):
         "message": "Deleted successfully"
     }), 200
 
-@app.route("/resume/<filename>")
-def view_resume(filename):
+# @app.route("/resume/<filename>")
+# def view_resume(filename):
 
-    print("LOOKING INSIDE:", UPLOAD_FOLDER)
-    print("REQUESTED FILE:", filename)
+#     print("LOOKING INSIDE:", UPLOAD_FOLDER)
+#     print("REQUESTED FILE:", filename)
 
-    return send_from_directory(
-        UPLOAD_FOLDER,
-        filename,
-        as_attachment=False
-    )
+#     return send_from_directory(
+#         UPLOAD_FOLDER,
+#         filename,
+#         as_attachment=False
+#     )
+
 
 if __name__ == "__main__":
 

@@ -299,7 +299,8 @@ def rank_resumes(
         result = {
             "resume_id": resume.get("id", i + 1),
             "filename": filename,
-            "filepath": resume.get("filepath"),
+            # "filepath": resume.get("filepath"),
+            "file_url": resume.get("resume_url"),
             "score": final_score,
             "is_owner": is_owner,
             "skills": skills_found,
