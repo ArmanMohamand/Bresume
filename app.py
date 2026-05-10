@@ -157,103 +157,6 @@ def login():
         "access_token": token
     })
 
-
-# @app.route("/upload", methods=["POST"])
-# @jwt_required()
-# def upload():
-
-#     file = request.files.get("file")
-
-#     if not file:
-
-#         return jsonify({
-#             "error": "No file uploaded"
-#         }), 400
-
-#     linkedin = request.form.get("linkedin")
-
-#     import json
-
-#     project_links = json.loads(
-#         request.form.get(
-#             "project_links",
-#             "[]"
-#         )
-#     )
-
-#     filename = (
-#         str(ObjectId()) +
-#         "_" +
-#         secure_filename(file.filename)
-#     )
-
-#     filepath = os.path.join(
-#         UPLOAD_FOLDER,
-#         filename
-#     )
-#     file.save(filepath)
-#     print("FILE SAVED TO:", filepath)
-
-#     text = ""
-
- 
-#     if filename.lower().endswith(".pdf"):
-
-#         doc = fitz.open(filepath)
-
-#         text = " ".join([
-#             page.get_text()
-#             for page in doc
-#         ])
-
-   
-#     else:
-
-#         with open(
-#             filepath,
-#             "r",
-#             encoding="utf-8",
-#             errors="ignore"
-#         ) as f:
-
-#             text = f.read()
-
-#     if not text.strip():
-
-#         return jsonify({
-#             "error": "Could not extract text"
-#         }), 400
-
-#     current_email = get_jwt_identity()
-
-#     user = users_collection.find_one({
-#         "email": current_email
-#     })
-
-#     resumes_collection.insert_one({
-
-#         "filename": filename,
-
-#         "filepath": filepath,
-
-#         "text": text,
-
-#         "uploaded_by": current_email,
-
-#         "username": user.get(
-#             "username",
-#             "Unknown"
-#         ),
-
-#         "linkedin": linkedin,
-
-#         "project_links": project_links
-#     })
-
-#     return jsonify({
-#         "message": "Uploaded successfully"
-#     }), 201
-
 @app.route("/upload", methods=["POST"])
 @jwt_required()
 def upload():
@@ -283,18 +186,15 @@ def upload():
         secure_filename(file.filename)
     )
 
-    # TEMP FILE PATH
     filepath = os.path.join(
         UPLOAD_FOLDER,
         filename
     )
 
-    # SAVE TEMPORARILY
     file.save(filepath)
 
     print("TEMP FILE SAVED:", filepath)
 
-    # ---------------- PDF TEXT EXTRACTION ----------------
     text = ""
 
     if filename.lower().endswith(".pdf"):
@@ -323,7 +223,6 @@ def upload():
             "error": "Could not extract text"
         }), 400
 
-    # ---------------- CLOUDINARY UPLOAD ----------------
     upload_result = cloudinary.uploader.upload(
         filepath,
         resource_type="image",
@@ -601,12 +500,6 @@ def delete_resume(resume_id):
             "error": "Unauthorized"
         }), 403
 
-   
-    # filepath = resume.get("filepath")
-
-    # if filepath and os.path.exists(filepath):
-    #     os.remove(filepath)
-
 
     resumes_collection.delete_one({
         "_id": ObjectId(resume_id)
@@ -649,17 +542,7 @@ def delete_job(id):
         "message": "Deleted successfully"
     }), 200
 
-# @app.route("/resume/<filename>")
-# def view_resume(filename):
 
-#     print("LOOKING INSIDE:", UPLOAD_FOLDER)
-#     print("REQUESTED FILE:", filename)
-
-#     return send_from_directory(
-#         UPLOAD_FOLDER,
-#         filename,
-#         as_attachment=False
-#     )
 
 
 if __name__ == "__main__":

@@ -43,7 +43,7 @@ def extract_contact(text):
     }
 
 
-# ---------------- LINKS ----------------
+
 def extract_links(text):
 
    
@@ -293,13 +293,11 @@ def rank_resumes(
     metadata["email"] == current_user_email
 )
 
-        # if metadata["email"] == current_user_email:
-        #     final_score += 1000
 
         result = {
             "resume_id": resume.get("id", i + 1),
             "filename": filename,
-            # "filepath": resume.get("filepath"),
+
             "file_url": resume.get("resume_url"),
             "score": final_score,
             "is_owner": is_owner,
