@@ -187,7 +187,31 @@ def extract_skills(text):
         "dsa",
         "rest",
         "jwt",
-        "api"
+        "api",
+
+
+        "photoshop",
+        "illustrator", 
+        "figma", 
+        "canva",
+
+        "tensorflow", 
+        "pytorch", 
+        "pandas", 
+        "numpy",
+        "scikit-learn",
+
+        "android", 
+        "kotlin",
+        "swift", 
+        "flutter", 
+        "react native",
+
+        "selenium",
+        "junit", 
+        "cypress",
+        "jest",
+        "mocha"
     ]
 
     found = []
